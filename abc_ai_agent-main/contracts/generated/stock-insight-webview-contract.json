@@ -1,0 +1,103 @@
+{
+  "contract_id": "req-2026-0920-002-stock-insight",
+  "version": "1.0.0",
+  "pattern_type": "minigame_shell_v1",
+  "issued_by": "architect_agent",
+
+  "folder_structure": {
+    "required_files": [
+      "src/index.tsx",
+      "src/App.tsx",
+      "src/pages/StockSearch.tsx",
+      "src/pages/Report.tsx",
+      "src/pages/FactorAnalysis.tsx",
+      "src/pages/Predict.tsx",
+      "src/pages/Result.tsx",
+      "src/pages/MyHistory.tsx",
+      "src/bridge/nhBridge.ts",
+      "src/api/client.ts",
+      "package.json",
+      "tsconfig.json"
+    ],
+    "allowed_globs": [
+      "src/**/*.{ts,tsx,css}",
+      "tests/**/*.{ts,tsx}",
+      "public/**/*",
+      "package.json",
+      "tsconfig.json",
+      "vite.config.ts",
+      "index.html",
+      ".env.example"
+    ]
+  },
+
+  "allowed_dependencies": {
+    "script_hosts": [
+      "https://cdnjs.cloudflare.com",
+      "https://cdn.jsdelivr.net"
+    ],
+    "npm_packages": [
+      "react@^18.0.0",
+      "react-dom@^18.0.0",
+      "typescript@^5.0.0",
+      "axios@^1.4.0",
+      "recharts@^2.10.0",
+      "vite@^5.0.0"
+    ]
+  },
+
+  "bridge_contract_ref": {
+    "contract_id": "minigame_shell_v1",
+    "path": "contracts/patterns/minigame_shell_v1.json"
+  },
+
+  "bridge_policy": {
+    "NHBridge.reward.grantPoint": {
+      "max_calls_per_session": 1,
+      "requires_approval": true
+    },
+    "NHBridge.auth.getUserId": {
+      "max_calls_per_session": 1,
+      "requires_approval": false
+    },
+    "NHBridge.nav.close": {
+      "max_calls_per_session": 1,
+      "requires_approval": false
+    }
+  },
+
+  "forbidden_patterns": [
+    {
+      "id": "no-eval",
+      "regex": "\\beval\\s*\\(",
+      "reason": "eval() is a security risk and violates Content Security Policy",
+      "severity": "block"
+    },
+    {
+      "id": "no-hardcoded-secret",
+      "regex": "api[_-]?key|secret|token.*=.*['\\\"]",
+      "reason": "Hardcoded credentials must not be committed",
+      "severity": "block"
+    },
+    {
+      "id": "no-direct-bridge-string",
+      "regex": "NHBridge\\.['\\\"]",
+      "reason": "Must use bridge adapter; do not reference bridge as string literal",
+      "severity": "block"
+    },
+    {
+      "id": "no-inline-color",
+      "regex": "#[0-9a-fA-F]{3,8}|rgb\\s*\\(",
+      "reason": "Use design tokens instead of hardcoded colors",
+      "severity": "warn"
+    },
+    {
+      "id": "no-investment-advice-wording",
+      "regex": "매수\\s*추천|매도\\s*추천|투자\\s*권유|지금\\s*사세요",
+      "reason": "본 서비스는 비투자성 참여 콘텐츠임 - 투자권유로 오인될 문구는 컴플라이언스 위반 소지, 법무 검토 필요",
+      "severity": "warn"
+    }
+  ],
+
+  "design_tokens_ref": "design/tokens.json"
+}

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stock-insight-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "stock-insight-backend", "run", "dev"],
+      "port": 8787
+    },
+    {
+      "name": "stock-insight-webview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "stock-insight-webview", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

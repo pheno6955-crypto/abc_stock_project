@@ -1,0 +1,51 @@
+export interface StockSummary {
+  code: string;
+  name: string;
+  market: "KOSPI" | "KOSDAQ";
+  marketValue?: number; // 억원 단위, 업종별 목록에서만 제공
+  closePrice?: number; // 현재가(원)
+  fluctuationsRatio?: number; // 전일 대비 등락률(%)
+}
+
+export interface StockCategory {
+  id: number;
+  label: string;
+}
+
+export interface StockReport {
+  code: string;
+  generatedAt: string;
+  summary: string;
+  keyIssues: string[];
+  investmentPoints: string[];
+  sources: { title: string; url: string; publishedAt: string }[];
+}
+
+export interface FactorItem {
+  label: string;
+  weight: number;
+  description: string;
+}
+
+export interface FactorAnalysis {
+  code: string;
+  bullishFactors: FactorItem[];
+  bearishFactors: FactorItem[];
+  note?: string;
+  priceChangePct?: number;
+}
+
+export type PredictionDirection = "UP" | "DOWN";
+
+export interface PredictionResult {
+  id: string;
+  code: string;
+  stockName: string;
+  direction: PredictionDirection;
+  referencePrice: number;
+  actualDirection: PredictionDirection | null;
+  isCorrect: boolean | null;
+  rewardClaimed: boolean;
+  submittedAt: string;
+  resolvedAt: string | null;
+}

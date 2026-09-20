@@ -1,0 +1,30 @@
+{
+  "name": "stock-insight-webview",
+  "version": "0.1.0",
+  "description": "AI 기반 증권 종목 인사이트 및 방향성 예측 참여형 서비스 (NH WebView)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.7.0",
+    "recharts": "^2.12.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vitest": "^2.1.0",
+    "jsdom": "^25.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/user-event": "^14.5.0"
+  }
+}
