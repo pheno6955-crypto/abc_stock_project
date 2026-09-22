@@ -8,7 +8,13 @@ export default defineConfig({
     preserveSymlinks: true,
   },
   server: {
+    host: "0.0.0.0",
     port: 5173,
+    allowedHosts: [
+      "enticing-evidence-uncivil.ngrok-free.dev",
+      "localhost",
+      "192.0.0.2",
+    ],
     fs: {
       strict: false,
     },

@@ -6,6 +6,9 @@ const apiKey = process.env.ANTHROPIC_API_KEY;
 const hasRealKey = !!apiKey && !apiKey.includes("xxxx");
 const client = hasRealKey ? new Anthropic({ apiKey }) : null;
 
+console.log("[aiReport] API Key loaded:", hasRealKey ? "✓" : "✗");
+if (!hasRealKey) console.log("[aiReport] Reason:", apiKey ? "Contains 'xxxx'" : "Not set");
+
 function buildReportPrompt(
   stockName: string,
   news: { title: string; body: string }[],
@@ -24,7 +27,7 @@ ${articles || "(관련 뉴스 없음)"}
 
 {
   "summary": "위 뉴스에 근거한 2~3문장 요약",
-  "keyIssues": ["뉴스에서 도출한 핵심 이슈 최대 3개"],
+  "keyIssues": ["뉴스에서 도출한 핵심 이슈 최대 5개"],
   "investmentPoints": ["뉴스에 근거한 투자 참고 포인트 최대 2개"]
 }`;
 }
@@ -52,7 +55,14 @@ async function askClaude(prompt: string): Promise<unknown> {
   );
   const text = message.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error("No text response from model");
-  return JSON.parse(text.text);
+
+  let jsonStr = text.text.trim();
+  // 마크다운 코드 블록 제거 (```json ... ```)
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+
+  return JSON.parse(jsonStr);
 }
 
 async function safeGetNews(code: string): Promise<{ title: string; body: string; url: string; publishedAt: string }[]> {
@@ -75,14 +85,25 @@ async function safeGetPriceChange(code: string): Promise<number> {
 }
 
 function extractiveReport(stockName: string, code: string, news: { title: string; body: string; url: string; publishedAt: string }[]): StockReport {
+  const summaryText = news.length > 0
+    ? news.slice(0, 3)
+        .map(n => {
+          const text = n.body.replace(/\n/g, ' ').trim();
+          // 마침표 뒤에 공백이 있는 경우만 문장 끝으로 인식 (1.21% 같은 숫자는 제외)
+          const firstSentence = text.match(/^.*?[.!?]\s/);
+          if (firstSentence) return firstSentence[0].trim();
+          // 마침표가 없으면 첫 번째 느낌표/물음표 찾기
+          const altSentence = text.match(/^.*?[!?]/);
+          return altSentence ? altSentence[0].trim() : text.substring(0, 150).trim() + '.';
+        })
+        .join(' ')
+    : `${stockName}에 대한 최근 뉴스를 가져오지 못했습니다.`;
+
   return {
     code,
     generatedAt: new Date().toISOString(),
-    summary:
-      news.length > 0
-        ? `${stockName} 관련 최근 뉴스 ${news.length}건을 표시합니다. (mock: ANTHROPIC_API_KEY 미설정으로 AI 요약 대신 실제 뉴스 원문을 그대로 표시)`
-        : `${stockName}에 대한 최근 뉴스를 가져오지 못했습니다. (mock)`,
-    keyIssues: news.slice(0, 3).map((n) => n.title),
+    summary: summaryText,
+    keyIssues: news.slice(0, 5).map((n) => ({ title: n.title, url: n.url })),
     investmentPoints: [],
     sources: news.map((n) => ({ title: n.title, url: n.url, publishedAt: n.publishedAt })),
   };
@@ -101,21 +122,28 @@ function extractiveFactors(code: string, priceChangePct: number): FactorAnalysis
 }
 
 export async function generateReport(code: string, stockName: string): Promise<StockReport> {
+  console.log(`[aiReport] generateReport called for ${code} (${stockName})`);
   const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
+  console.log(`[aiReport] Fetched ${news.length} news articles, price change: ${priceChangePct}%`);
 
-  if (!client) return extractiveReport(stockName, code, news);
+  if (!client) {
+    console.log(`[aiReport] No client, using extractive report`);
+    return extractiveReport(stockName, code, news);
+  }
 
   try {
+    console.log(`[aiReport] Calling Claude API...`);
     const parsed = (await askClaude(buildReportPrompt(stockName, news, priceChangePct))) as {
       summary: string;
       keyIssues: string[];
       investmentPoints: string[];
     };
+    console.log(`[aiReport] Claude API success for ${code}`);
     return {
       code,
       generatedAt: new Date().toISOString(),
       summary: parsed.summary,
-      keyIssues: parsed.keyIssues,
+      keyIssues: news.slice(0, 5).map((n) => ({ title: n.title, url: n.url })),
       investmentPoints: parsed.investmentPoints,
       sources: news.map((n) => ({ title: n.title, url: n.url, publishedAt: n.publishedAt })),
     };

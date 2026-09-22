@@ -16,7 +16,7 @@ export interface StockReport {
   code: string;
   generatedAt: string;
   summary: string;
-  keyIssues: string[];
+  keyIssues: { title: string; url: string }[];
   investmentPoints: string[];
   sources: { title: string; url: string; publishedAt: string }[];
 }

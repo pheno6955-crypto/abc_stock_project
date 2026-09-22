@@ -8,9 +8,11 @@ import type {
   PredictionResult,
 } from "../types";
 
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8787/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787/api",
-  timeout: 10000,
+  baseURL: apiBaseURL,
+  timeout: 30000,
 });
 
 export async function searchStocks(query: string): Promise<StockSummary[]> {
