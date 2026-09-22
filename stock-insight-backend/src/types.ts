@@ -35,6 +35,11 @@ export interface FactorAnalysis {
   priceChangePct?: number;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export type PredictionDirection = "UP" | "DOWN";
 
 export interface PredictionResult {

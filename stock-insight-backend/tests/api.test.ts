@@ -42,13 +42,45 @@ test("GET /api/stocks/categories/:id/stocks returns market-cap sorted real stock
   const res = await request(app).get("/api/stocks/categories/278/stocks");
   assert.equal(res.status, 200);
   assert.ok(res.body.length > 0);
-  // 반도체 업종 시총 1위는 삼성전자여야 함 (실데이터 기반 검증)
-  assert.equal(res.body[0].code, "005930");
+  // 반도체 업종 시총 1위는 삼성전자(보통주/우선주 중 하나)여야 함 (실데이터 기반 검증)
+  assert.ok(["005930", "005935"].includes(res.body[0].code));
+  // 시가총액 내림차순 정렬 검증
+  for (let i = 1; i < res.body.length; i++) {
+    assert.ok(res.body[i - 1].marketValue >= res.body[i].marketValue);
+  }
 });
 
 test("GET /api/stocks/categories/:id/stocks 404s for unknown category", async () => {
   const res = await request(app).get("/api/stocks/categories/999999/stocks");
   assert.equal(res.status, 404);
+});
+
+test("POST /api/stocks/:code/chat rejects empty messages", async () => {
+  const res = await request(app).post("/api/stocks/005930/chat").send({ messages: [] });
+  assert.equal(res.status, 400);
+});
+
+test("POST /api/stocks/:code/chat 404s for unknown code", async () => {
+  const res = await request(app)
+    .post("/api/stocks/999999/chat")
+    .send({ messages: [{ role: "user", content: "PER이 뭐야?" }] });
+  assert.equal(res.status, 404);
+});
+
+test("POST /api/stocks/:code/chat replies with glossary answer (mock, no API key)", async () => {
+  const res = await request(app)
+    .post("/api/stocks/005930/chat")
+    .send({ messages: [{ role: "user", content: "PER이 뭐야?" }] });
+  assert.equal(res.status, 200);
+  assert.match(res.body.reply, /^\[PER\]/);
+});
+
+test("POST /api/stocks/:code/chat falls back to guide reply for unknown terms (mock)", async () => {
+  const res = await request(app)
+    .post("/api/stocks/005930/chat")
+    .send({ messages: [{ role: "user", content: "오늘 날씨 어때?" }] });
+  assert.equal(res.status, 200);
+  assert.match(res.body.reply, /AI가 설정되어 있지 않아/);
 });
 
 test("POST /api/predictions rejects invalid direction", async () => {

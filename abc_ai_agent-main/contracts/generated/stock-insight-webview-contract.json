@@ -42,7 +42,8 @@
       "typescript@^5.0.0",
       "axios@^1.4.0",
       "recharts@^2.10.0",
-      "vite@^5.0.0"
+      "vite@^5.0.0",
+      "lucide-react@^0.446.0"
     ]
   },
 

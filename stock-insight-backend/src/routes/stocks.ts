@@ -1,13 +1,27 @@
 import { Router } from "express";
-import { generateReport, generateFactorAnalysis } from "../services/aiReport.js";
+import { generateReport, generateFactorAnalysis, chatAboutStock } from "../services/aiReport.js";
 import {
   getStockPrice,
   searchStocks,
   getIndustryStocks,
   attachPrices,
 } from "../services/naverFinance.js";
+import type { ChatMessage } from "../types.js";
 
 const SEARCH_PRICE_ENRICH_LIMIT = 10;
+
+// 채팅은 대화형이라 리포트 1회성 생성보다 비용이 꾸준히 나가서, 최소한의 남용 방지용 제한을 둔다.
+const CHAT_RATE_LIMIT = 20;
+const CHAT_RATE_WINDOW_MS = 60_000;
+let chatRequestTimestamps: number[] = [];
+
+function isChatRateLimited(): boolean {
+  const now = Date.now();
+  chatRequestTimestamps = chatRequestTimestamps.filter((t) => now - t < CHAT_RATE_WINDOW_MS);
+  if (chatRequestTimestamps.length >= CHAT_RATE_LIMIT) return true;
+  chatRequestTimestamps.push(now);
+  return false;
+}
 
 export const stocksRouter = Router();
 
@@ -78,6 +92,32 @@ stocksRouter.get("/:code/report", async (req, res) => {
   }
   const report = await generateReport(req.params.code, stockName);
   res.json(report);
+});
+
+stocksRouter.post("/:code/chat", async (req, res) => {
+  const { messages } = req.body as { messages?: ChatMessage[] };
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: "messages 배열이 필요합니다." });
+  }
+  if (isChatRateLimited()) {
+    return res.status(429).json({ error: "잠시 후 다시 시도해주세요. (요청이 많습니다)" });
+  }
+
+  let stockName: string;
+  try {
+    stockName = (await getStockPrice(req.params.code)).stockName;
+  } catch (err) {
+    console.warn(`[stocks] price lookup failed for ${req.params.code}:`, (err as Error).message);
+    return res.status(404).json({ error: "존재하지 않거나 조회할 수 없는 종목코드입니다." });
+  }
+
+  try {
+    const reply = await chatAboutStock(req.params.code, stockName, messages);
+    res.json({ reply });
+  } catch (err) {
+    console.warn(`[stocks] chat failed for ${req.params.code}:`, (err as Error).message);
+    res.status(502).json({ error: "채팅 응답 생성에 실패했습니다. 잠시 후 다시 시도해주세요." });
+  }
 });
 
 stocksRouter.get("/:code/factors", async (req, res) => {

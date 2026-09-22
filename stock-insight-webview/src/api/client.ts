@@ -6,6 +6,7 @@ import type {
   FactorAnalysis,
   PredictionDirection,
   PredictionResult,
+  ChatMessage,
 } from "../types";
 
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8787/api`;
@@ -38,6 +39,11 @@ export async function getStockReport(code: string): Promise<StockReport> {
 export async function getFactorAnalysis(code: string): Promise<FactorAnalysis> {
   const res = await api.get<FactorAnalysis>(`/stocks/${code}/factors`);
   return res.data;
+}
+
+export async function chatAboutStock(code: string, messages: ChatMessage[]): Promise<string> {
+  const res = await api.post<{ reply: string }>(`/stocks/${code}/chat`, { messages });
+  return res.data.reply;
 }
 
 export async function submitPrediction(

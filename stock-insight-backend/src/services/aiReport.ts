@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { FactorAnalysis, StockReport } from "../types.js";
+import type { ChatMessage, FactorAnalysis, StockReport } from "../types.js";
 import { getStockNews, getStockPrice } from "./naverFinance.js";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -119,6 +119,139 @@ function extractiveFactors(code: string, priceChangePct: number): FactorAnalysis
     note: "AI가 설정되어 있지 않아 상세 영향요인 분석은 제공할 수 없습니다.",
     priceChangePct,
   };
+}
+
+const CHAT_HISTORY_LIMIT = 8;
+
+// AI 미설정(mock) 상태에서도 답할 수 있는 기본 금융 용어 사전.
+const GLOSSARY: { pattern: RegExp; term: string; definition: string }[] = [
+  {
+    pattern: /\bper\b|주가수익비율/i,
+    term: "PER",
+    definition:
+      "주가를 주당순이익(EPS)으로 나눈 값이에요. 지금 주가가 회사가 버는 이익 대비 몇 배인지 보여주는 지표라서, 숫자가 낮을수록 이익 대비 저평가됐다고 해석하는 경우가 많아요.",
+  },
+  {
+    pattern: /\bpbr\b|주가순자산비율/i,
+    term: "PBR",
+    definition:
+      "주가를 주당순자산(회사가 가진 자산 - 부채)으로 나눈 값이에요. 1보다 낮으면 회사가 가진 순자산보다 주가가 싸게 거래되고 있다는 뜻이에요.",
+  },
+  {
+    pattern: /\beps\b|주당순이익/i,
+    term: "EPS",
+    definition: "회사의 당기순이익을 전체 발행 주식 수로 나눈 값이에요. 주식 한 주가 벌어들인 이익이 얼마인지 보여줘요.",
+  },
+  {
+    pattern: /\broe\b|자기자본이익률/i,
+    term: "ROE",
+    definition:
+      "회사가 자기 자본(주주 돈)을 가지고 얼마나 효율적으로 이익을 냈는지 보여주는 비율이에요. 높을수록 자본을 효율적으로 굴려서 돈을 벌고 있다는 뜻이에요.",
+  },
+  {
+    pattern: /영업이익/,
+    term: "영업이익",
+    definition: "회사가 본업(제품·서비스 판매)으로 벌어들인 이익이에요. 매출에서 원가와 판매·관리비를 뺀 금액이에요.",
+  },
+  {
+    pattern: /순이익|당기순이익/,
+    term: "순이익",
+    definition: "영업이익에서 이자, 세금 등 모든 비용을 다 뺀 최종 이익이에요. 회사가 실제로 손에 쥔 돈이라고 보면 돼요.",
+  },
+  {
+    pattern: /시가총액|시총/,
+    term: "시가총액",
+    definition: "현재 주가에 전체 발행 주식 수를 곱한 값이에요. 시장이 그 회사 전체 가치를 얼마로 평가하고 있는지 보여줘요.",
+  },
+  {
+    pattern: /배당수익률|배당률/,
+    term: "배당수익률",
+    definition: "주가 대비 1년간 받는 배당금의 비율이에요. 예를 들어 주가 10만원에 배당금 3천원이면 배당수익률은 3%예요.",
+  },
+  {
+    pattern: /코스피|코스닥.*(차이|뭐)|kospi|kosdaq/i,
+    term: "코스피 vs 코스닥",
+    definition:
+      "코스피는 삼성전자 같은 대형·우량 기업 위주의 시장이고, 코스닥은 상대적으로 중소형·성장 기업 위주의 시장이에요. 상장 기준과 규모가 달라요.",
+  },
+  {
+    pattern: /등락률/,
+    term: "등락률",
+    definition: "전날 종가 대비 오늘 주가가 몇 % 오르거나 내렸는지를 나타낸 값이에요.",
+  },
+];
+
+function findGlossaryAnswer(question: string): string | null {
+  const match = GLOSSARY.find((entry) => entry.pattern.test(question));
+  return match ? `[${match.term}] ${match.definition}` : null;
+}
+
+const NO_AI_GUIDE_REPLY =
+  "AI가 설정되어 있지 않아 자유로운 질문에는 답하기 어려워요. 다만 PER, PBR, EPS, ROE, 영업이익, 순이익, 시가총액, 배당수익률, 코스피/코스닥, 등락률 같은 기본 용어는 지금도 물어보실 수 있어요. (실제 서비스에서는 리포트 내용에 대해서도 자유롭게 물어보실 수 있어요)";
+
+// 매수/매도 유도로 읽힐 수 있는 표현이 응답에 섞이면 안전한 안내 문구로 강제 대체한다.
+// (프롬프트 가드레일과 별개로 두는 최후 방어선)
+const INVESTMENT_ADVICE_PATTERN =
+  /매수\s*추천|매도\s*추천|투자\s*권유|지금\s*사세요|지금\s*파세요|사는\s*게\s*좋|파는\s*게\s*좋/;
+const SAFE_FALLBACK_REPLY =
+  "죄송해요, 저는 매수·매도 추천이나 투자 자문을 드릴 수 없어요. 리포트에 나온 내용을 쉽게 풀어드리거나 용어를 설명해드리는 건 도와드릴 수 있어요.";
+
+function buildChatSystemPrompt(
+  stockName: string,
+  news: { title: string; body: string }[],
+  priceChangePct: number
+): string {
+  const articles = news.map((n, i) => `[기사 ${i + 1}] ${n.title}\n${n.body}`).join("\n\n");
+  return `당신은 은행 앱 안에 있는 "${stockName}" 종목 리포트 설명 도우미입니다.
+사용자는 이미 화면에서 아래 뉴스·등락률 기반 리포트를 봤고, 그 내용에 대해 질문합니다.
+
+[역할 범위 - 이것만 하세요]
+- 리포트/뉴스 내용 설명, 금융 용어 풀이, 서비스 이용 방법 안내
+
+[절대 하지 말아야 할 것]
+- 매수/매도 추천, 특정 종목 추천, "사세요/파세요" 같은 표현
+- 미래 주가에 대한 확정적 예측 ("오를 거예요" 등)
+- 투자 여부에 대한 직접적인 조언
+- 위 질문을 받으면 "저는 투자 자문을 드릴 수 없어요"라고 정중히 답하고, 대신 리포트 설명이나 방향성 예측 참여 기능을 안내하세요.
+
+답변은 2~4문장으로 짧고 쉽게, 초보 투자자도 이해할 수 있게 답하세요.
+
+[전일 대비 등락률]
+${priceChangePct}%
+
+[참고 뉴스]
+${articles || "(관련 뉴스 없음)"}`;
+}
+
+export async function chatAboutStock(
+  code: string,
+  stockName: string,
+  history: ChatMessage[]
+): Promise<string> {
+  if (!client) {
+    const lastUserMessage = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+    return findGlossaryAnswer(lastUserMessage) ?? NO_AI_GUIDE_REPLY;
+  }
+
+  const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
+  const trimmedHistory = history.slice(-CHAT_HISTORY_LIMIT);
+
+  const message = await client.messages.create(
+    {
+      model: "claude-sonnet-5",
+      max_tokens: 400,
+      system: buildChatSystemPrompt(stockName, news, priceChangePct),
+      messages: trimmedHistory.map((m) => ({ role: m.role, content: m.content })),
+    },
+    { timeout: 15000 }
+  );
+  const text = message.content.find((block) => block.type === "text");
+  const reply = text && text.type === "text" ? text.text : "";
+
+  if (!reply || INVESTMENT_ADVICE_PATTERN.test(reply)) {
+    return SAFE_FALLBACK_REPLY;
+  }
+  return reply;
 }
 
 export async function generateReport(code: string, stockName: string): Promise<StockReport> {

@@ -16,7 +16,7 @@ export interface StockReport {
   code: string;
   generatedAt: string;
   summary: string;
-  keyIssues: string[];
+  keyIssues: { title: string; url: string }[];
   investmentPoints: string[];
   sources: { title: string; url: string; publishedAt: string }[];
 }
@@ -33,6 +33,11 @@ export interface FactorAnalysis {
   bearishFactors: FactorItem[];
   note?: string;
   priceChangePct?: number;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export type PredictionDirection = "UP" | "DOWN";

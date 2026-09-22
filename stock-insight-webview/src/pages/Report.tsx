@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { StockReport, StockSummary } from "../types";
 import { getStockReport } from "../api/client";
 import { getErrorMessage } from "../api/errors";
+import ReportChat from "../components/ReportChat";
 
 interface Props {
   stock: StockSummary;
@@ -13,16 +14,19 @@ export default function Report({ stock, onNext }: Props) {
   const [error, setError] = useState<string | null>(null);
   const loadedCodeRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // 이미 로드된 종목이면 스킵
-    if (loadedCodeRef.current === stock.code) return;
-
+  const load = useCallback(() => {
     loadedCodeRef.current = stock.code;
     setError(null);
     getStockReport(stock.code)
       .then(setReport)
       .catch((err) => setError(getErrorMessage(err)));
   }, [stock.code]);
+
+  useEffect(() => {
+    // 이미 로드된 종목이면 스킵
+    if (loadedCodeRef.current === stock.code) return;
+    load();
+  }, [stock.code, load]);
 
   if (error) {
     console.error("[Report] Error:", error);
@@ -97,6 +101,8 @@ export default function Report({ stock, onNext }: Props) {
           ))}
         </div>
       </div>
+      <ReportChat code={stock.code} stockName={stock.name} />
+
       <button className="primary-button" onClick={onNext}>
         주가 영향요인 분석 보기
       </button>
