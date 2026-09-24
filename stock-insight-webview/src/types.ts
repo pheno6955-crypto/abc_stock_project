@@ -42,6 +42,14 @@ export interface ChatMessage {
 
 export type PredictionDirection = "UP" | "DOWN";
 
+export interface StreakStatus {
+  currentStreak: number;
+  todayParticipated: boolean;
+  milestoneEvery: number;
+  bonusAmount: number;
+  bonusAvailable: boolean;
+}
+
 export interface PredictionResult {
   id: string;
   code: string;
@@ -52,5 +60,6 @@ export interface PredictionResult {
   isCorrect: boolean | null;
   rewardClaimed: boolean;
   submittedAt: string;
+  resolvableAt: string;
   resolvedAt: string | null;
 }

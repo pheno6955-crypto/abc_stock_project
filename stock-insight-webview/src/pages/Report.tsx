@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, Lightbulb, Sparkles, Target, TrendingUp } from "lucide-react";
 import type { StockReport, StockSummary } from "../types";
 import { getStockReport } from "../api/client";
 import { getErrorMessage } from "../api/errors";
 import ReportChat from "../components/ReportChat";
+import Skeleton from "../components/Skeleton";
+import { relativeTime } from "../utils/time";
 
 interface Props {
   stock: StockSummary;
@@ -43,7 +46,42 @@ export default function Report({ stock, onNext }: Props) {
     );
   }
 
-  if (!report) return <p>AI 리포트를 생성하는 중입니다...</p>;
+  if (!report) {
+    return (
+      <div>
+        <Skeleton width="40%" height={20} />
+        <div className="card" style={{ marginTop: "var(--space-md)" }}>
+          <Skeleton width="30%" height={16} />
+          <div style={{ marginTop: "var(--space-md)" }}>
+            <div className="skeleton-row">
+              <Skeleton width={24} height={24} />
+              <Skeleton width="90%" />
+            </div>
+            <div className="skeleton-row">
+              <Skeleton width={24} height={24} />
+              <Skeleton width="75%" />
+            </div>
+            <div className="skeleton-row">
+              <Skeleton width={24} height={24} />
+              <Skeleton width="60%" />
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <Skeleton width="25%" height={16} />
+          <div style={{ marginTop: "var(--space-md)" }}>
+            <div style={{ marginBottom: "var(--space-xs)" }}>
+              <Skeleton width="100%" height={38} />
+            </div>
+            <div style={{ marginBottom: "var(--space-xs)" }}>
+              <Skeleton width="100%" height={38} />
+            </div>
+            <Skeleton width="100%" height={38} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   console.log("[Report] Summary text:", report.summary);
   const sentences = report.summary
@@ -55,7 +93,9 @@ export default function Report({ stock, onNext }: Props) {
     <div>
       <h2 style={{ fontSize: 20 }}>{stock.name}</h2>
       <div className="card summary-card">
-        <h2>🤖 AI 요약</h2>
+        <h2 className="card-title">
+          <Bot size={18} /> AI 요약
+        </h2>
         <div className="summary-items">
           {report.summary
             .split(/(?<=[가-힣다했며])[.。!?]+\s+(?=[가-힣])/)
@@ -74,28 +114,35 @@ export default function Report({ stock, onNext }: Props) {
         </div>
       </div>
       <div className="card key-issues-card">
-        <h2>🎯 핵심 이슈</h2>
-        <div className="key-issues-grid">
-          {report.keyIssues.map((issue) => (
+        <h2 className="card-title">
+          <Target size={18} /> 핵심 이슈
+        </h2>
+        <div className="key-issues-list">
+          {report.sources.map((issue) => (
             <a
               key={issue.url}
               href={issue.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="key-issue-tag"
+              className="key-issue-row"
               title={issue.title}
             >
-              {issue.title}
+              <span className="key-issue-row-title">{issue.title}</span>
+              <span className="key-issue-row-time">{relativeTime(issue.publishedAt)}</span>
             </a>
           ))}
         </div>
       </div>
       <div className="card investment-points-card">
-        <h2>💡 투자 포인트</h2>
+        <h2 className="card-title">
+          <Lightbulb size={18} /> 투자 포인트
+        </h2>
         <div className="investment-points-grid">
           {report.investmentPoints.map((point, idx) => (
             <div key={point} className="investment-point-item">
-              <span className="point-icon">{idx === 0 ? "📈" : "⭐"}</span>
+              <span className="point-icon">
+                {idx === 0 ? <TrendingUp size={18} /> : <Sparkles size={18} />}
+              </span>
               <p className="point-text">{point}</p>
             </div>
           ))}

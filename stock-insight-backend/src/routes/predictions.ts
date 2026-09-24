@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PredictionDirection, PredictionResult } from "../types.js";
 import { getPrediction, listPredictions, savePrediction, updatePrediction } from "../store/predictionStore.js";
 import { getStockPrice } from "../services/naverFinance.js";
+import { nextResolvableTime } from "../utils/tradingCalendar.js";
 
 export const predictionsRouter = Router();
 
@@ -24,6 +25,7 @@ predictionsRouter.post("/", async (req, res) => {
     return res.status(502).json({ error: "현재가 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });
   }
 
+  const now = new Date();
   const prediction: PredictionResult = {
     id: `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     code,
@@ -33,7 +35,8 @@ predictionsRouter.post("/", async (req, res) => {
     actualDirection: null,
     isCorrect: null,
     rewardClaimed: false,
-    submittedAt: new Date().toISOString(),
+    submittedAt: now.toISOString(),
+    resolvableAt: nextResolvableTime(now).toISOString(),
     resolvedAt: null,
   };
 
@@ -45,8 +48,7 @@ predictionsRouter.get("/", (_req, res) => {
   res.json(listPredictions());
 });
 
-// 실제로는 익일 거래일 종가 확정 배치가 호출해야 할 판정 로직.
-// 지금은 배치 스케줄러가 없어 호출 시점의 실시간가를 referencePrice와 비교해 즉시 판정한다.
+// 다음 거래일 종가 확정 후에만 판정 가능. resolvableAt 이전 호출은 명시적으로 거절한다.
 async function resolveOne(prediction: PredictionResult): Promise<PredictionResult> {
   const currentPrice = (await getStockPrice(prediction.code)).closePrice;
   const actualDirection: PredictionDirection = currentPrice >= prediction.referencePrice ? "UP" : "DOWN";
@@ -58,10 +60,41 @@ async function resolveOne(prediction: PredictionResult): Promise<PredictionResul
   })!;
 }
 
+// 매 거래일 종가 확정 후 자동 실행되는 스케줄러([scheduler.ts](../services/predictionScheduler.ts))와
+// 수동 판정 엔드포인트가 공유하는 일괄 판정 로직. resolvableAt이 지난 건만 판정한다.
+export async function resolveEligiblePending(): Promise<{
+  resolved: PredictionResult[];
+  failed: string[];
+}> {
+  const now = Date.now();
+  const eligible = listPredictions().filter(
+    (p) => p.resolvedAt === null && new Date(p.resolvableAt).getTime() <= now
+  );
+  const resolved: PredictionResult[] = [];
+  const failed: string[] = [];
+
+  for (const prediction of eligible) {
+    try {
+      resolved.push(await resolveOne(prediction));
+    } catch (err) {
+      console.warn(`[predictions] resolve failed for ${prediction.id}:`, (err as Error).message);
+      failed.push(prediction.id);
+    }
+  }
+
+  return { resolved, failed };
+}
+
 predictionsRouter.post("/:id/resolve", async (req, res) => {
   const prediction = getPrediction(req.params.id);
   if (!prediction) return res.status(404).json({ error: "Prediction not found" });
   if (prediction.resolvedAt) return res.status(400).json({ error: "Already resolved" });
+  if (new Date(prediction.resolvableAt).getTime() > Date.now()) {
+    return res.status(400).json({
+      error: "아직 판정 시점이 아니에요. 다음 거래일 종가 확정 후 자동으로 결과가 나와요.",
+      resolvableAt: prediction.resolvableAt,
+    });
+  }
 
   try {
     res.json(await resolveOne(prediction));
@@ -71,23 +104,10 @@ predictionsRouter.post("/:id/resolve", async (req, res) => {
   }
 });
 
-// 실제 배치 스케줄러(예: 매 거래일 종가 확정 후 cron)가 호출할 것을 상정한 일괄 판정 엔드포인트.
-// 현재 이 서버에는 스케줄러가 붙어있지 않으므로, 운영 전환 시 이 엔드포인트를 배치 잡에서 호출하면 됨.
+// 매 거래일 종가 확정 후 스케줄러가 호출하는 일괄 판정 엔드포인트 (운영 점검/수동 트리거용으로도 사용 가능).
 predictionsRouter.post("/resolve-pending", async (_req, res) => {
-  const pending = listPredictions().filter((p) => p.resolvedAt === null);
-  const results: PredictionResult[] = [];
-  const failed: string[] = [];
-
-  for (const prediction of pending) {
-    try {
-      results.push(await resolveOne(prediction));
-    } catch (err) {
-      console.warn(`[predictions] batch resolve failed for ${prediction.id}:`, (err as Error).message);
-      failed.push(prediction.id);
-    }
-  }
-
-  res.json({ resolved: results.length, failed, results });
+  const { resolved, failed } = await resolveEligiblePending();
+  res.json({ resolved: resolved.length, failed, results: resolved });
 });
 
 predictionsRouter.post("/:id/claim-reward", (req, res) => {

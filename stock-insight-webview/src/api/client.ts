@@ -7,6 +7,7 @@ import type {
   PredictionDirection,
   PredictionResult,
   ChatMessage,
+  StreakStatus,
 } from "../types";
 
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8787/api`;
@@ -66,5 +67,15 @@ export async function claimReward(predictionId: string): Promise<void> {
 
 export async function resolvePrediction(predictionId: string): Promise<PredictionResult> {
   const res = await api.post<PredictionResult>(`/predictions/${predictionId}/resolve`);
+  return res.data;
+}
+
+export async function getStreak(): Promise<StreakStatus> {
+  const res = await api.get<StreakStatus>("/streak");
+  return res.data;
+}
+
+export async function claimStreakBonus(): Promise<{ claimed: boolean; streak: number; bonusAmount: number }> {
+  const res = await api.post("/streak/claim-bonus");
   return res.data;
 }

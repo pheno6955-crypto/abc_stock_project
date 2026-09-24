@@ -1,3 +1,6 @@
+import { LineChart, Scale, Target } from "lucide-react";
+import StreakBanner from "../components/StreakBanner";
+
 interface Props {
   onStart: () => void;
   onViewHistory: () => void;
@@ -5,17 +8,17 @@ interface Props {
 
 const FEATURES = [
   {
-    icon: "📊",
+    icon: LineChart,
     title: "AI 종목 리포트",
     description: "최신 뉴스·공시를 AI가 분석해 핵심 이슈와 투자 포인트를 요약해드려요.",
   },
   {
-    icon: "⚖️",
+    icon: Scale,
     title: "주가 영향요인 분석",
     description: "상승·하락에 영향을 주는 요인을 한눈에 볼 수 있게 정리했어요.",
   },
   {
-    icon: "🎯",
+    icon: Target,
     title: "방향성 예측 + 리워드",
     description: "내일 주가 방향을 예측해보고, 적중하면 올원캔디를 받아보세요.",
   },
@@ -24,6 +27,7 @@ const FEATURES = [
 export default function Home({ onStart, onViewHistory }: Props) {
   return (
     <div>
+      <StreakBanner />
       <div className="hero">
         <p className="hero-eyebrow">AI 기반 증권 종목 인사이트</p>
         <h1 className="hero-title">
@@ -43,7 +47,9 @@ export default function Home({ onStart, onViewHistory }: Props) {
       <div>
         {FEATURES.map((f) => (
           <div key={f.title} className="card feature-card">
-            <span className="feature-icon">{f.icon}</span>
+            <span className="feature-icon">
+              <f.icon size={22} strokeWidth={2} />
+            </span>
             <div>
               <h2>{f.title}</h2>
               <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: 14 }}>

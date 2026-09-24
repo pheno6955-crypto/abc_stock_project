@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { Bot, Info, TrendingDown, TrendingUp } from "lucide-react";
 import type { FactorAnalysis as FactorAnalysisType, StockSummary } from "../types";
 import { getFactorAnalysis } from "../api/client";
 import { getErrorMessage } from "../api/errors";
+import Skeleton from "../components/Skeleton";
+
+function PriceBadge({ priceChangePct }: { priceChangePct: number }) {
+  const color =
+    priceChangePct > 0 ? "var(--color-up)" : priceChangePct < 0 ? "var(--color-down)" : "var(--color-text-secondary)";
+  return (
+    <span className="empty-state-badge" style={{ color }}>
+      {priceChangePct > 0 ? "▲" : priceChangePct < 0 ? "▼" : "-"} 전일 대비{" "}
+      {Math.abs(priceChangePct).toFixed(2)}%
+    </span>
+  );
+}
 
 interface Props {
   stock: StockSummary;
@@ -36,85 +48,92 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
     );
   }
 
-  if (!data) return <p>영향요인을 분석하는 중입니다...</p>;
+  if (!data) {
+    return (
+      <div>
+        <Skeleton width="45%" height={20} />
+        <div className="card" style={{ marginTop: "var(--space-md)" }}>
+          <Skeleton width="20%" height={16} />
+          <div style={{ marginTop: "var(--space-md)" }}>
+            <Skeleton width="100%" height={56} />
+            <div style={{ marginTop: "var(--space-sm)" }}>
+              <Skeleton width="100%" height={56} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const hasFactors = data.bullishFactors.length > 0 || data.bearishFactors.length > 0;
-
-  const chartData = [
-    ...data.bullishFactors.map((f) => ({ name: f.label, weight: f.weight, type: "up" })),
-    ...data.bearishFactors.map((f) => ({ name: f.label, weight: -f.weight, type: "down" })),
-  ];
-  const chartHeight = Math.max(chartData.length * 56, 100);
+  const priceChangePct = data.priceChangePct;
+  const movedUp = priceChangePct != null && priceChangePct > 0;
+  const movedDown = priceChangePct != null && priceChangePct < 0;
+  const directionMismatch =
+    hasFactors &&
+    ((movedUp && data.bullishFactors.length === 0) || (movedDown && data.bearishFactors.length === 0));
 
   return (
     <div>
-      <h2 style={{ fontSize: 20 }}>{stock.name} 영향요인</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-sm)" }}>
+        <h2 style={{ fontSize: 20, margin: 0 }}>{stock.name} 영향요인</h2>
+        {priceChangePct != null && <PriceBadge priceChangePct={priceChangePct} />}
+      </div>
 
       {!hasFactors && data.note && (
         <div className="card empty-state">
-          <span className="empty-state-icon">🤖</span>
+          <span className="empty-state-icon">
+            <Bot size={32} />
+          </span>
           <p className="empty-state-title">아직 AI 분석이 연결되지 않았어요</p>
           <p className="empty-state-desc">{data.note}</p>
-          {data.priceChangePct != null && (
-            <span
-              className="empty-state-badge"
-              style={{
-                color:
-                  data.priceChangePct > 0
-                    ? "var(--color-up)"
-                    : data.priceChangePct < 0
-                      ? "var(--color-down)"
-                      : "var(--color-text-secondary)",
-              }}
-            >
-              {data.priceChangePct > 0 ? "▲" : data.priceChangePct < 0 ? "▼" : "-"}{" "}
-              전일 대비 {Math.abs(data.priceChangePct).toFixed(2)}%
-            </span>
-          )}
         </div>
       )}
 
-      {hasFactors && (
-        <div className="card">
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 24 }}>
-              <XAxis type="number" domain={[-1, 1]} hide />
-              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="weight" barSize={28}>
-                {chartData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={entry.type === "up" ? "var(--color-up)" : "var(--color-down)"}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      {directionMismatch && (
+        <div className="card notice-card">
+          <Info size={16} />
+          <p>
+            오늘 {stock.name}은 {movedUp ? "상승" : "하락"}했지만, 관련 뉴스에서는 뚜렷한{" "}
+            {movedUp ? "상승" : "하락"} 근거를 찾지 못했어요. 시장 전체 흐름이나 수급 등 뉴스에
+            드러나지 않는 다른 요인의 영향일 수 있어요.
+          </p>
         </div>
       )}
 
       {data.bullishFactors.length > 0 && (
         <div className="card">
-          <h2 style={{ color: "var(--color-up)" }}>상승 요인</h2>
-          {data.bullishFactors.map((f) => (
-            <p key={f.label}>
-              <strong>{f.label}</strong> — {f.description}
-            </p>
-          ))}
+          <h2 className="card-title factor-title up">
+            <TrendingUp size={18} /> 상승 요인
+          </h2>
+          <div className="factor-list">
+            {data.bullishFactors.map((f) => (
+              <div key={f.label} className="factor-item up">
+                <strong>{f.label}</strong>
+                <p>{f.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {data.bearishFactors.length > 0 && (
         <div className="card">
-          <h2 style={{ color: "var(--color-down)" }}>하락 요인</h2>
-          {data.bearishFactors.map((f) => (
-            <p key={f.label}>
-              <strong>{f.label}</strong> — {f.description}
-            </p>
-          ))}
+          <h2 className="card-title factor-title down">
+            <TrendingDown size={18} /> 하락 요인
+          </h2>
+          <div className="factor-list">
+            {data.bearishFactors.map((f) => (
+              <div key={f.label} className="factor-item down">
+                <strong>{f.label}</strong>
+                <p>{f.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      {hasFactors && <p className="bridge-copy">지금까지 살펴본 내용을 참고해서, 내일 주가 방향을 예측해보세요</p>}
 
       <button className="primary-button" onClick={onNext}>
         방향성 예측 참여하기

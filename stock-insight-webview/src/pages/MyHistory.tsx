@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
+import { Clock } from "lucide-react";
 import type { PredictionResult } from "../types";
-import { getMyPredictions, claimReward, resolvePrediction } from "../api/client";
+import { getMyPredictions, claimReward } from "../api/client";
 import { nhBridge } from "../bridge/nhBridge";
 import { getErrorMessage } from "../api/errors";
+
+function formatResolvableAt(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}`;
+}
 
 export default function MyHistory() {
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -17,16 +25,6 @@ export default function MyHistory() {
   };
 
   useEffect(load, []);
-
-  const handleResolve = async (prediction: PredictionResult) => {
-    setActionErrors((prev) => ({ ...prev, [prediction.id]: "" }));
-    try {
-      const updated = await resolvePrediction(prediction.id);
-      setPredictions((prev) => prev.map((p) => (p.id === prediction.id ? updated : p)));
-    } catch (err) {
-      setActionErrors((prev) => ({ ...prev, [prediction.id]: getErrorMessage(err) }));
-    }
-  };
 
   const handleClaim = async (prediction: PredictionResult) => {
     setActionErrors((prev) => ({ ...prev, [prediction.id]: "" }));
@@ -57,7 +55,7 @@ export default function MyHistory() {
   }
 
   return (
-    <div>
+    <div className="history-list">
       {predictions.map((p) => (
         <div key={p.id} className="card">
           <h2>{p.stockName}</h2>
@@ -67,9 +65,11 @@ export default function MyHistory() {
             {p.resolvedAt === null ? "확정 대기" : p.isCorrect ? "적중" : "미적중"}
           </p>
           {p.resolvedAt === null && (
-            <button className="primary-button" onClick={() => handleResolve(p)}>
-              결과 확인 (실시간 시세 기준)
-            </button>
+            <p className="pending-notice">
+              <Clock size={14} />
+              {formatResolvableAt(p.resolvableAt)} 다음 거래일 종가 확정 후 자동으로 결과가
+              나와요. 그 전까지는 결과를 확인할 수 없어요.
+            </p>
           )}
           {p.isCorrect && !p.rewardClaimed && (
             <button className="primary-button" onClick={() => handleClaim(p)}>

@@ -32,14 +32,25 @@ ${articles || "(관련 뉴스 없음)"}
 }`;
 }
 
-function buildFactorPrompt(stockName: string, priceChangePct: number): string {
-  return `"${stockName}"의 전일 대비 등락률은 ${priceChangePct}%입니다.
-이 종목의 주가에 영향을 줄 수 있는 일반적인 상승/하락 요인을 아래 JSON 스키마로만 응답하세요.
-설명 문장 없이 JSON만 출력하세요.
+function buildFactorPrompt(
+  stockName: string,
+  news: { title: string; body: string }[],
+  priceChangePct: number
+): string {
+  const articles = news
+    .map((n, i) => `[기사 ${i + 1}] ${n.title}\n${n.body}`)
+    .join("\n\n");
+  return `"${stockName}"의 전일 대비 등락률은 ${priceChangePct}%입니다. 아래는 관련 최근 실제 뉴스 기사입니다.
+
+${articles || "(관련 뉴스 없음)"}
+
+위 뉴스에서 실제로 언급된 사실에 근거해 이 종목의 주가에 영향을 줄 수 있는 상승/하락 요인을 뽑아내세요.
+뉴스에 없는 내용을 일반론으로 지어내지 말고, 뉴스 기사 자체가 부족하면 그 사실을 반영해 요인 개수를 줄이세요.
+아래 JSON 스키마로만 응답하고, 설명 문장 없이 JSON만 출력하세요.
 
 {
-  "bullishFactors": [{"label": "요인명", "weight": 0.0~1.0, "description": "설명"}],
-  "bearishFactors": [{"label": "요인명", "weight": 0.0~1.0, "description": "설명"}]
+  "bullishFactors": [{"label": "요인명", "weight": 0.0~1.0, "description": "해당 뉴스에 근거한 설명"}],
+  "bearishFactors": [{"label": "요인명", "weight": 0.0~1.0, "description": "해당 뉴스에 근거한 설명"}]
 }`;
 }
 
@@ -48,7 +59,7 @@ async function askClaude(prompt: string): Promise<unknown> {
   const message = await client.messages.create(
     {
       model: "claude-sonnet-5",
-      max_tokens: 600,
+      max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     },
     { timeout: 15000 }
@@ -239,7 +250,7 @@ export async function chatAboutStock(
   const message = await client.messages.create(
     {
       model: "claude-sonnet-5",
-      max_tokens: 400,
+      max_tokens: 4096,
       system: buildChatSystemPrompt(stockName, news, priceChangePct),
       messages: trimmedHistory.map((m) => ({ role: m.role, content: m.content })),
     },
@@ -287,16 +298,16 @@ export async function generateReport(code: string, stockName: string): Promise<S
 }
 
 export async function generateFactorAnalysis(code: string, stockName: string): Promise<FactorAnalysis> {
-  const priceChangePct = await safeGetPriceChange(code);
+  const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
 
   if (!client) return extractiveFactors(code, priceChangePct);
 
   try {
-    const parsed = (await askClaude(buildFactorPrompt(stockName, priceChangePct))) as Omit<
+    const parsed = (await askClaude(buildFactorPrompt(stockName, news, priceChangePct))) as Omit<
       FactorAnalysis,
-      "code"
+      "code" | "priceChangePct"
     >;
-    return { code, ...parsed };
+    return { code, priceChangePct, ...parsed };
   } catch (err) {
     console.warn(`[aiReport] falling back to extractive factors for ${code}:`, (err as Error).message);
     return extractiveFactors(code, priceChangePct);

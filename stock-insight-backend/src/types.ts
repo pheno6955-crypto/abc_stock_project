@@ -52,5 +52,6 @@ export interface PredictionResult {
   isCorrect: boolean | null;
   rewardClaimed: boolean;
   submittedAt: string;
+  resolvableAt: string;
   resolvedAt: string | null;
 }
