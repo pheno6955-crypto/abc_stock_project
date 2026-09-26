@@ -7,10 +7,11 @@ import FactorAnalysis from "./pages/FactorAnalysis";
 import Predict from "./pages/Predict";
 import Result from "./pages/Result";
 import MyHistory from "./pages/MyHistory";
+import Rankings from "./pages/Rankings";
 import "./App.css";
 
 type Screen = "search" | "report" | "factors" | "predict" | "result";
-type Tab = "home" | "insight" | "history";
+type Tab = "home" | "insight" | "history" | "rankings";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("home");
@@ -66,6 +67,7 @@ export default function App() {
   const renderBody = () => {
     if (tab === "home") return <Home onStart={goToInsight} onViewHistory={() => setTab("history")} />;
     if (tab === "insight") return renderInsightFlow();
+    if (tab === "rankings") return <Rankings />;
     return <MyHistory />;
   };
 
@@ -94,6 +96,9 @@ export default function App() {
         </button>
         <button className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
           내 예측 이력
+        </button>
+        <button className={tab === "rankings" ? "active" : ""} onClick={() => setTab("rankings")}>
+          랭킹
         </button>
       </nav>
     </div>

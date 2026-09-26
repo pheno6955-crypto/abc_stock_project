@@ -8,7 +8,9 @@ import type {
   PredictionResult,
   ChatMessage,
   StreakStatus,
+  RankingResponse,
 } from "../types";
+import { getCurrentUserId } from "../utils/identity";
 
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8787/api`;
 
@@ -52,12 +54,14 @@ export async function submitPrediction(
   stockName: string,
   direction: PredictionDirection
 ): Promise<PredictionResult> {
-  const res = await api.post<PredictionResult>("/predictions", { code, stockName, direction });
+  const userId = await getCurrentUserId();
+  const res = await api.post<PredictionResult>("/predictions", { code, stockName, direction, userId });
   return res.data;
 }
 
 export async function getMyPredictions(): Promise<PredictionResult[]> {
-  const res = await api.get<PredictionResult[]>("/predictions");
+  const userId = await getCurrentUserId();
+  const res = await api.get<PredictionResult[]>("/predictions", { params: { userId } });
   return res.data;
 }
 
@@ -71,11 +75,19 @@ export async function resolvePrediction(predictionId: string): Promise<Predictio
 }
 
 export async function getStreak(): Promise<StreakStatus> {
-  const res = await api.get<StreakStatus>("/streak");
+  const userId = await getCurrentUserId();
+  const res = await api.get<StreakStatus>("/streak", { params: { userId } });
   return res.data;
 }
 
 export async function claimStreakBonus(): Promise<{ claimed: boolean; streak: number; bonusAmount: number }> {
-  const res = await api.post("/streak/claim-bonus");
+  const userId = await getCurrentUserId();
+  const res = await api.post("/streak/claim-bonus", { userId });
+  return res.data;
+}
+
+export async function getRankings(period: "week" | "month"): Promise<RankingResponse> {
+  const userId = await getCurrentUserId();
+  const res = await api.get<RankingResponse>("/rankings", { params: { period, userId } });
   return res.data;
 }

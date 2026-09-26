@@ -34,17 +34,16 @@ const POPULAR_STOCKS = [
   { code: "005380", name: "현대차", market: "KOSPI" as const },
 ];
 
-// id는 네이버 금융의 실제 업종 분류 코드 (https://m.stock.naver.com/api/stocks/industry 참고).
-// 79개 전체 업종 중 사용자에게 익숙한 주요 업종만 선별.
+// industryIds는 네이버 금융의 실제 업종 분류 코드 (https://m.stock.naver.com/api/stocks/industry 참고).
+// 79개 전체 업종 중, 사용자에게 익숙하고 관심도가 높은 5개 큰 섹터로만 선별·통합
+// (예: IT·게임은 "IT서비스"+"게임·엔터" 두 업종을 합쳐서 하나의 카테고리로 보여줌).
+// id는 이 앱에서만 쓰는 별도 식별자로, 네이버 업종 코드와는 무관함.
 const CATEGORIES = [
-  { id: 278, label: "반도체" },
-  { id: 273, label: "자동차" },
-  { id: 272, label: "화학·2차전지" },
-  { id: 267, label: "IT서비스" },
-  { id: 263, label: "게임·엔터" },
-  { id: 261, label: "제약·바이오" },
-  { id: 301, label: "은행·금융" },
-  { id: 266, label: "화장품" },
+  { id: 1, label: "반도체", industryIds: [278] },
+  { id: 2, label: "자동차", industryIds: [273] },
+  { id: 3, label: "바이오·제약", industryIds: [261] },
+  { id: 4, label: "은행·금융", industryIds: [301] },
+  { id: 5, label: "IT·게임", industryIds: [267, 263] },
 ];
 
 stocksRouter.get("/search", async (req, res) => {
@@ -65,7 +64,7 @@ stocksRouter.get("/search", async (req, res) => {
 });
 
 stocksRouter.get("/categories", (_req, res) => {
-  res.json(CATEGORIES);
+  res.json(CATEGORIES.map(({ id, label }) => ({ id, label })));
 });
 
 stocksRouter.get("/categories/:id/stocks", async (req, res) => {
@@ -74,8 +73,16 @@ stocksRouter.get("/categories/:id/stocks", async (req, res) => {
   if (!category) return res.status(404).json({ error: "Unknown category id" });
 
   try {
-    const stocks = await getIndustryStocks(id);
-    res.json(stocks);
+    // 업종을 여러 개 합친 카테고리(예: IT·게임)는 각각 더 넉넉히 가져온 뒤 시가총액 기준으로 다시 합쳐 정렬한다.
+    const perIndustryLimit = category.industryIds.length > 1 ? 10 : 6;
+    const lists = await Promise.all(
+      category.industryIds.map((industryId) => getIndustryStocks(industryId, perIndustryLimit))
+    );
+    const merged = lists
+      .flat()
+      .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
+      .slice(0, 6);
+    res.json(merged);
   } catch (err) {
     console.warn(`[stocks] category stocks failed for ${id}:`, (err as Error).message);
     res.status(502).json({ error: "업종별 종목 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });

@@ -89,22 +89,24 @@ export default function StockSearch({ onSelect }: Props) {
       />
 
       {!showingSearch && categories.length > 0 && (
-        <div className="category-chip-row">
-          <button
-            className={`category-chip ${activeCategory === null ? "active" : ""}`}
-            onClick={() => setActiveCategory(null)}
-          >
-            인기 종목
-          </button>
-          {categories.map((c) => (
+        <div className="category-chip-scroll">
+          <div className="category-chip-row">
             <button
-              key={c.id}
-              className={`category-chip ${activeCategory?.id === c.id ? "active" : ""}`}
-              onClick={() => selectCategory(c)}
+              className={`category-chip ${activeCategory === null ? "active" : ""}`}
+              onClick={() => setActiveCategory(null)}
             >
-              {c.label}
+              인기 종목
             </button>
-          ))}
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                className={`category-chip ${activeCategory?.id === c.id ? "active" : ""}`}
+                onClick={() => selectCategory(c)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

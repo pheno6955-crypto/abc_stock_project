@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 // 프로토타입 단계: 실제 DB 대신 JSON 파일 영속화 (predictionStore.ts와 동일한 방식).
-// 로그인이 아직 없어 전체 서비스 단위로 마일스톤(날짜)을 하나만 추적한다 — 실 사용자 구분 붙으면 userId 기준으로 교체 필요.
+// 마일스톤 키는 "userId:날짜" 형식으로 저장해서, 사람마다 독립적으로 보너스를 받을 수 있게 한다.
 const isTest = process.env.NODE_ENV === "test";
 const dataDir = path.join(process.cwd(), "data");
 const dataFile = path.join(dataDir, "streakBonuses.json");
@@ -24,11 +24,11 @@ function persist(): void {
   fs.writeFileSync(dataFile, JSON.stringify(Array.from(claimedMilestones), null, 2));
 }
 
-export function isMilestoneClaimed(dateKey: string): boolean {
-  return claimedMilestones.has(dateKey);
+export function isMilestoneClaimed(milestoneKey: string): boolean {
+  return claimedMilestones.has(milestoneKey);
 }
 
-export function claimMilestone(dateKey: string): void {
-  claimedMilestones.add(dateKey);
+export function claimMilestone(milestoneKey: string): void {
+  claimedMilestones.add(milestoneKey);
   persist();
 }

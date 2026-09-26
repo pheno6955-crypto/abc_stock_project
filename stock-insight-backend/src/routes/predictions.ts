@@ -7,14 +7,15 @@ import { nextResolvableTime } from "../utils/tradingCalendar.js";
 export const predictionsRouter = Router();
 
 predictionsRouter.post("/", async (req, res) => {
-  const { code, stockName, direction } = req.body as {
+  const { code, stockName, direction, userId } = req.body as {
     code?: string;
     stockName?: string;
     direction?: PredictionDirection;
+    userId?: string;
   };
 
-  if (!code || !stockName || (direction !== "UP" && direction !== "DOWN")) {
-    return res.status(400).json({ error: "code, stockName, direction(UP|DOWN) are required" });
+  if (!code || !stockName || (direction !== "UP" && direction !== "DOWN") || !userId) {
+    return res.status(400).json({ error: "code, stockName, direction(UP|DOWN), userId are required" });
   }
 
   let referencePrice: number;
@@ -28,6 +29,7 @@ predictionsRouter.post("/", async (req, res) => {
   const now = new Date();
   const prediction: PredictionResult = {
     id: `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userId,
     code,
     stockName,
     direction,
@@ -44,8 +46,10 @@ predictionsRouter.post("/", async (req, res) => {
   res.status(201).json(prediction);
 });
 
-predictionsRouter.get("/", (_req, res) => {
-  res.json(listPredictions());
+predictionsRouter.get("/", (req, res) => {
+  const { userId } = req.query as { userId?: string };
+  const predictions = userId ? listPredictions().filter((p) => p.userId === userId) : listPredictions();
+  res.json(predictions);
 });
 
 // 다음 거래일 종가 확정 후에만 판정 가능. resolvableAt 이전 호출은 명시적으로 거절한다.

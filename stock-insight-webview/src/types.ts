@@ -50,8 +50,25 @@ export interface StreakStatus {
   bonusAvailable: boolean;
 }
 
+export interface RankingEntry {
+  rank: number;
+  userId: string;
+  isMe: boolean;
+  hits: number;
+  attempts: number;
+  accuracy: number;
+}
+
+export interface RankingResponse {
+  period: "week" | "month";
+  periodStart: string;
+  entries: RankingEntry[];
+  me: RankingEntry | null;
+}
+
 export interface PredictionResult {
   id: string;
+  userId: string;
   code: string;
   stockName: string;
   direction: PredictionDirection;

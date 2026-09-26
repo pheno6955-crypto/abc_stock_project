@@ -3,6 +3,7 @@ import cors from "cors";
 import { stocksRouter } from "./routes/stocks.js";
 import { predictionsRouter } from "./routes/predictions.js";
 import { streakRouter } from "./routes/streak.js";
+import { rankingsRouter } from "./routes/rankings.js";
 
 export function createApp() {
   const app = express();
@@ -13,6 +14,7 @@ export function createApp() {
   app.use("/api/stocks", stocksRouter);
   app.use("/api/predictions", predictionsRouter);
   app.use("/api/streak", streakRouter);
+  app.use("/api/rankings", rankingsRouter);
 
   return app;
 }

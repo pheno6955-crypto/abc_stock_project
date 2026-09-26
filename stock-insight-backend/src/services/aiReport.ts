@@ -265,51 +265,85 @@ export async function chatAboutStock(
   return reply;
 }
 
+// 같은 종목을 짧은 시간 안에 여러 번(다른 사용자 포함) 조회해도 매번 AI를 다시 부르지 않도록,
+// 종목 코드 기준으로 결과를 잠깐 재사용한다. 뉴스/가격이 그 사이 크게 안 바뀐다는 전제.
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10분
+
+// data가 아니라 promise 자체를 캐싱해서, 첫 요청이 아직 끝나기 전에 두 번째 요청(예: 프리페치와
+// 실제 화면 진입이 거의 동시에 들어오는 경우)이 와도 같은 진행 중인 요청을 같이 기다리게 한다
+// (그렇지 않으면 둘 다 "캐시 없음"으로 보고 Claude를 2번 호출하게 됨).
+function withCache<T>(
+  cache: Map<string, { promise: Promise<T>; cachedAt: number }>,
+  key: string,
+  label: string,
+  compute: () => Promise<T>
+): Promise<T> {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    console.log(`[aiReport] cache hit for ${label} ${key}`);
+    return cached.promise;
+  }
+  const promise = compute();
+  cache.set(key, { promise, cachedAt: Date.now() });
+  promise.catch(() => cache.delete(key)); // 실패하면 다음 요청이 재시도할 수 있게 캐시에서 제거
+  return promise;
+}
+
+const reportCache = new Map<string, { promise: Promise<StockReport>; cachedAt: number }>();
+const factorCache = new Map<string, { promise: Promise<FactorAnalysis>; cachedAt: number }>();
+
 export async function generateReport(code: string, stockName: string): Promise<StockReport> {
-  console.log(`[aiReport] generateReport called for ${code} (${stockName})`);
-  const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
-  console.log(`[aiReport] Fetched ${news.length} news articles, price change: ${priceChangePct}%`);
+  return withCache(reportCache, code, "report", async () => {
+    console.log(`[aiReport] generateReport called for ${code} (${stockName})`);
+    const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
+    console.log(`[aiReport] Fetched ${news.length} news articles, price change: ${priceChangePct}%`);
 
-  if (!client) {
-    console.log(`[aiReport] No client, using extractive report`);
-    return extractiveReport(stockName, code, news);
-  }
+    if (!client) {
+      console.log(`[aiReport] No client, using extractive report`);
+      return extractiveReport(stockName, code, news);
+    }
 
-  try {
-    console.log(`[aiReport] Calling Claude API...`);
-    const parsed = (await askClaude(buildReportPrompt(stockName, news, priceChangePct))) as {
-      summary: string;
-      keyIssues: string[];
-      investmentPoints: string[];
-    };
-    console.log(`[aiReport] Claude API success for ${code}`);
-    return {
-      code,
-      generatedAt: new Date().toISOString(),
-      summary: parsed.summary,
-      keyIssues: news.slice(0, 5).map((n) => ({ title: n.title, url: n.url })),
-      investmentPoints: parsed.investmentPoints,
-      sources: news.map((n) => ({ title: n.title, url: n.url, publishedAt: n.publishedAt })),
-    };
-  } catch (err) {
-    console.warn(`[aiReport] falling back to extractive report for ${code}:`, (err as Error).message);
-    return extractiveReport(stockName, code, news);
-  }
+    try {
+      console.log(`[aiReport] Calling Claude API...`);
+      const parsed = (await askClaude(buildReportPrompt(stockName, news, priceChangePct))) as {
+        summary: string;
+        keyIssues: string[];
+        investmentPoints: string[];
+      };
+      console.log(`[aiReport] Claude API success for ${code}`);
+      return {
+        code,
+        generatedAt: new Date().toISOString(),
+        summary: parsed.summary,
+        keyIssues: news.slice(0, 5).map((n) => ({ title: n.title, url: n.url })),
+        investmentPoints: parsed.investmentPoints,
+        sources: news.map((n) => ({ title: n.title, url: n.url, publishedAt: n.publishedAt })),
+      };
+    } catch (err) {
+      console.warn(`[aiReport] falling back to extractive report for ${code}:`, (err as Error).message);
+      return extractiveReport(stockName, code, news);
+    }
+  });
 }
 
 export async function generateFactorAnalysis(code: string, stockName: string): Promise<FactorAnalysis> {
-  const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
+  return withCache(factorCache, code, "factors", async () => {
+    console.log(`[aiReport] generateFactorAnalysis called for ${code} (${stockName})`);
+    const [news, priceChangePct] = await Promise.all([safeGetNews(code), safeGetPriceChange(code)]);
 
-  if (!client) return extractiveFactors(code, priceChangePct);
+    if (!client) return extractiveFactors(code, priceChangePct);
 
-  try {
-    const parsed = (await askClaude(buildFactorPrompt(stockName, news, priceChangePct))) as Omit<
-      FactorAnalysis,
-      "code" | "priceChangePct"
-    >;
-    return { code, priceChangePct, ...parsed };
-  } catch (err) {
-    console.warn(`[aiReport] falling back to extractive factors for ${code}:`, (err as Error).message);
-    return extractiveFactors(code, priceChangePct);
-  }
+    try {
+      console.log(`[aiReport] Calling Claude API for factors...`);
+      const parsed = (await askClaude(buildFactorPrompt(stockName, news, priceChangePct))) as Omit<
+        FactorAnalysis,
+        "code" | "priceChangePct"
+      >;
+      console.log(`[aiReport] Claude API success for factors ${code}`);
+      return { code, priceChangePct, ...parsed };
+    } catch (err) {
+      console.warn(`[aiReport] falling back to extractive factors for ${code}:`, (err as Error).message);
+      return extractiveFactors(code, priceChangePct);
+    }
+  });
 }

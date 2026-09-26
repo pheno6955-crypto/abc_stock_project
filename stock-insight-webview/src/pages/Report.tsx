@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Lightbulb, Sparkles, Target, TrendingUp } from "lucide-react";
 import type { StockReport, StockSummary } from "../types";
-import { getStockReport } from "../api/client";
+import { getStockReport, getFactorAnalysis } from "../api/client";
 import { getErrorMessage } from "../api/errors";
 import ReportChat from "../components/ReportChat";
 import Skeleton from "../components/Skeleton";
@@ -23,6 +23,9 @@ export default function Report({ stock, onNext }: Props) {
     getStockReport(stock.code)
       .then(setReport)
       .catch((err) => setError(getErrorMessage(err)));
+    // 사용자가 리포트를 읽는 동안 다음 화면(영향요인 분석)도 미리 백그라운드에서 준비해둔다.
+    // 실패해도 여기선 신경 쓰지 않음 — 실제 표시/에러 처리는 그 화면에 진입했을 때 다시 함.
+    getFactorAnalysis(stock.code).catch(() => {});
   }, [stock.code]);
 
   useEffect(() => {
@@ -49,6 +52,15 @@ export default function Report({ stock, onNext }: Props) {
   if (!report) {
     return (
       <div>
+        <div className="ai-loading-status">
+          <Bot size={16} />
+          <span>AI가 뉴스를 읽고 리포트를 정리하고 있어요</span>
+          <span className="ai-loading-dots">
+            <span className="chat-typing-dot" />
+            <span className="chat-typing-dot" />
+            <span className="chat-typing-dot" />
+          </span>
+        </div>
         <Skeleton width="40%" height={20} />
         <div className="card" style={{ marginTop: "var(--space-md)" }}>
           <Skeleton width="30%" height={16} />

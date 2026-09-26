@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Info, TrendingDown, TrendingUp } from "lucide-react";
 import type { FactorAnalysis as FactorAnalysisType, StockSummary } from "../types";
 import { getFactorAnalysis } from "../api/client";
@@ -24,8 +24,10 @@ interface Props {
 export default function FactorAnalysis({ stock, onNext }: Props) {
   const [data, setData] = useState<FactorAnalysisType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadedCodeRef = useRef<string | null>(null);
 
   const load = useCallback(() => {
+    loadedCodeRef.current = stock.code;
     setError(null);
     setData(null);
     getFactorAnalysis(stock.code)
@@ -34,8 +36,10 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
   }, [stock.code]);
 
   useEffect(() => {
+    // 이미 로드된 종목이면 스킵 (React StrictMode의 개발 모드 중복 실행 방지)
+    if (loadedCodeRef.current === stock.code) return;
     load();
-  }, [load]);
+  }, [stock.code, load]);
 
   if (error) {
     return (
@@ -51,6 +55,15 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
   if (!data) {
     return (
       <div>
+        <div className="ai-loading-status">
+          <Bot size={16} />
+          <span>AI가 상승·하락 요인을 분석하고 있어요</span>
+          <span className="ai-loading-dots">
+            <span className="chat-typing-dot" />
+            <span className="chat-typing-dot" />
+            <span className="chat-typing-dot" />
+          </span>
+        </div>
         <Skeleton width="45%" height={20} />
         <div className="card" style={{ marginTop: "var(--space-md)" }}>
           <Skeleton width="20%" height={16} />

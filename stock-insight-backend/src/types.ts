@@ -44,6 +44,7 @@ export type PredictionDirection = "UP" | "DOWN";
 
 export interface PredictionResult {
   id: string;
+  userId: string;
   code: string;
   stockName: string;
   direction: PredictionDirection;
@@ -54,4 +55,20 @@ export interface PredictionResult {
   submittedAt: string;
   resolvableAt: string;
   resolvedAt: string | null;
+}
+
+export interface RankingEntry {
+  rank: number;
+  userId: string;
+  isMe: boolean;
+  hits: number;
+  attempts: number;
+  accuracy: number;
+}
+
+export interface RankingResponse {
+  period: "week" | "month";
+  periodStart: string;
+  entries: RankingEntry[];
+  me: RankingEntry | null;
 }
