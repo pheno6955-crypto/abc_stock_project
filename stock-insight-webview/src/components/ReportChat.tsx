@@ -103,7 +103,7 @@ export default function ReportChat({ code }: Props) {
         </button>
       </div>
       <p className="disclaimer" style={{ marginTop: "var(--space-sm)" }}>
-        매수·매도 추천이나 투자 자문은 제공하지 않아요. 참고용 설명만 드립니다.
+        매수·매도 추천이 아닌, 참고용 설명이에요.
       </p>
     </div>
   );

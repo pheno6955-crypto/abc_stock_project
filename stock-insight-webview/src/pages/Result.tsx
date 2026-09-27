@@ -26,15 +26,18 @@ export default function Result({ result, onDone }: Props) {
     <div>
       <div className="card result-card" style={{ textAlign: "center" }}>
         <img src={ollieMascot} alt="" className="result-mascot" />
-        <h2>예측이 제출되었습니다</h2>
+        <h2>예측이 제출됐어요</h2>
         <p>
-          {displayStockName(result.stockName, result.code)} 내일 방향: <strong>{result.direction === "UP" ? "올리 ▲" : "내리 ▼"}</strong>
+          {displayStockName(result.stockName, result.code)} 내일 방향:{" "}
+          <strong style={{ color: result.direction === "UP" ? "var(--color-up)" : "var(--color-down)" }}>
+            {result.direction === "UP" ? "올리 ▲" : "내리 ▼"}
+          </strong>
         </p>
         <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
           제출 시점 기준가 {result.referencePrice.toLocaleString()}원
         </p>
         <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
-          결과는 다음 거래일 종가 확정 후 반영되며, 적중 시 리워드가 자동 지급됩니다.
+          결과는 다음 거래일 종가 확정 후 나와요.
         </p>
         <span className="reward-badge">적중 시 올원캔디 지급 예정</span>
       </div>
@@ -44,8 +47,8 @@ export default function Result({ result, onDone }: Props) {
         <div>
           <p className="cross-sell-title">투자에 관심이 생기셨나요?</p>
           <p className="cross-sell-desc">
-            NH의 펀드·ETF 상품을 살펴보거나, 자산관리 상담을 받아볼 수 있어요. (이 종목·예측
-            결과와는 무관한 일반 안내예요)
+            NH의 펀드·ETF 상품을 살펴보거나 자산관리 상담을 받아보세요. (예측 결과와 무관한 일반
+            안내예요)
           </p>
           <button className="secondary-button" onClick={handleOpenProducts}>
             NH 상품 살펴보기

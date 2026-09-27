@@ -107,9 +107,8 @@ export default function FactorAnalysis({ stock }: Props) {
         <div className="card notice-card">
           <Info size={16} />
           <p>
-            오늘 {stock.name}은 {movedUp ? "상승" : "하락"}했지만, 관련 뉴스에서는 뚜렷한{" "}
-            {movedUp ? "상승" : "하락"} 근거를 찾지 못했어요. 시장 전체 흐름이나 수급 등 뉴스에
-            드러나지 않는 다른 요인의 영향일 수 있어요.
+            오늘 {stock.name}은 {movedUp ? "상승" : "하락"}했지만 관련 뉴스 근거는 못 찾았어요.
+            시장 흐름이나 수급 등 다른 요인의 영향일 수 있어요.
           </p>
         </div>
       )}

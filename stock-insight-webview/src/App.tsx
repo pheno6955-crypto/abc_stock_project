@@ -89,11 +89,13 @@ export default function App() {
     return <MyHistory />;
   };
 
-  // 앱 이름의 "올리"는 올리 포인트/올리 버튼과 같은 빨강, "내리"는 내리 포인트/내리 버튼과 같은
-  // 파랑으로 맞춰서, 로고만 보고도 상승·하락 두 방향을 다루는 서비스라는 게 바로 보이게 한다.
+  // "NH"는 농협은행 상징색인 초록(브랜드 컬러, --color-primary)으로, "올리"는 올리 포인트/올리
+  // 버튼과 같은 빨강, "내리"는 내리 포인트/내리 버튼과 같은 파랑으로 맞춰서, 로고만 보고도
+  // NH 서비스이면서 상승·하락 두 방향을 다룬다는 게 바로 보이게 한다.
   const title = (
     <>
-      NH <span style={{ color: "var(--color-up)" }}>올리</span>
+      <span style={{ color: "var(--color-primary)" }}>NH</span>{" "}
+      <span style={{ color: "var(--color-up)" }}>올리</span>
       <span style={{ color: "var(--color-down)" }}>내리</span>
     </>
   );

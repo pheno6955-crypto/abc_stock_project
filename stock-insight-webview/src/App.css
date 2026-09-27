@@ -1464,3 +1464,29 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* 짧은 버전 안내문구는 기본적으로 숨겨뒀다가, 아주 좁은 화면에서만 긴 버전과 바꿔친다
+   (320px처럼 좁은 실제 기기에서 한 줄 문구가 두 줄로 넘어가는 것을 막기 위함). */
+.disclaimer-short {
+  display: none;
+}
+
+@media (max-width: 340px) {
+  .disclaimer-full {
+    display: none;
+  }
+
+  .disclaimer-short {
+    display: block;
+  }
+
+  .hero-title {
+    font-size: 20px;
+  }
+
+  /* 320px처럼 아주 좁은 화면에서는 13px로는 "종목 인사이트"/"내 예측 이력" 글자가 옆 탭과
+     맞닿을 정도로 겹쳐 보여서, 이 폭에서만 살짝 줄인다. */
+  .bottom-nav button {
+    font-size: 12px;
+  }
+}

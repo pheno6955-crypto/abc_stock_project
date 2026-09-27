@@ -56,10 +56,12 @@ export default function Home({ onStart }: Props) {
         ))}
       </div>
 
-      <p className="disclaimer">
-        본 서비스는 AI가 생성한 참고용 정보와 비투자성 예측 콘텐츠를 제공하며, 투자 자문이나
-        매매 권유가 아닙니다. 투자 결정은 본인 판단과 책임 하에 이루어져야 합니다.
+      {/* 아주 좁은 화면(약 340px 이하)에서는 전체 문구가 두 줄로 넘어가, 짧은 버전으로 바꿔치기한다.
+          (핵심 문구 "투자 자문·권유 아님"은 두 버전 모두 유지) */}
+      <p className="disclaimer disclaimer-full">
+        AI 참고용 콘텐츠로, 투자 자문·권유가 아니며 책임은 본인에게 있어요.
       </p>
+      <p className="disclaimer disclaimer-short">AI 참고용 콘텐츠이며 투자 자문·권유가 아니에요.</p>
     </div>
   );
 }

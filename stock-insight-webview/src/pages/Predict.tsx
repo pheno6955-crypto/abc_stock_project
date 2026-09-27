@@ -64,11 +64,7 @@ export default function Predict({ stock, onSubmitted }: Props) {
   return (
     <div>
       <h2 style={{ fontSize: 20 }}>{displayStockName(stock.name, stock.code)} 방향 예측</h2>
-      <p style={{ color: "var(--color-text-secondary)" }}>
-        지금 가격 대비, 다음 거래일 종가가 오를지 내릴지 예측해보세요.
-        <br />
-        <span style={{ fontSize: 13 }}>(투자 행위가 아닌 참여형 콘텐츠예요)</span>
-      </p>
+      <p style={{ color: "var(--color-text-secondary)" }}>내일 가격이 오를지 내릴지 예측해보세요.</p>
       {livePrice?.closePrice != null && (
         <div className="current-price-row">
           <span className="current-price-label">지금 기준가</span>
@@ -91,8 +87,8 @@ export default function Predict({ stock, onSubmitted }: Props) {
             <span className={`direction-chip ${pending.direction === "UP" ? "up" : "down"}`}>
               {pending.direction === "UP" ? "올리 ▲" : "내리 ▼"}
             </span>
-            (기준가 {pending.referencePrice.toLocaleString()}원)이고, 다음 거래일 종가가 확정된 뒤에
-            결과가 나와요. 결과 확정 후 다시 참여할 수 있어요.
+            (기준가 {pending.referencePrice.toLocaleString()}원)이고, 결과 확정 후 다시 참여할 수
+            있어요.
           </p>
         </div>
       )}
@@ -125,14 +121,13 @@ export default function Predict({ stock, onSubmitted }: Props) {
         <div>
           <p className="notice-title">판정 기준</p>
           <ul className="notice-list">
-            <li>지금 이 순간의 가격을 기준가로 저장해요.</li>
-            <li>다음 거래일 장이 마감되면(15:30 이후) 그 종가와 비교해 올리/내리를 자동으로 판정해요.</li>
-            <li>결과는 예측 이력 페이지에서 확인할 수 있어요.</li>
+            <li>다음 거래일 종가와 비교해 자동 판정해요.</li>
+            <li>결과는 예측 이력에서 확인할 수 있어요.</li>
           </ul>
         </div>
       </div>
       <p className="disclaimer">
-        예측이 적중하면 소정의 리워드(올원캔디 등)가 지급됩니다. 실제 매수·매도를 권유하는 것이 아닙니다.
+        적중하면 리워드(올원캔디 등)가 지급돼요. 매수·매도를 권유하는 게 아니에요.
       </p>
     </div>
   );

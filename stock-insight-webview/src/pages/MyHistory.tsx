@@ -74,7 +74,7 @@ export default function MyHistory() {
   if (predictions.length === 0) {
     return (
       <div>
-        <p style={{ color: "var(--color-text-secondary)" }}>아직 참여한 예측이 없습니다.</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>아직 참여한 예측이 없어요.</p>
         {devSeedButton}
       </div>
     );
@@ -102,8 +102,7 @@ export default function MyHistory() {
           {p.resolvedAt === null && (
             <p className="pending-notice">
               <Clock size={14} />
-              {formatResolvableAt(p.resolvableAt)} 다음 거래일 종가 확정 후 자동으로 결과가
-              나와요. 그 전까지는 결과를 확인할 수 없어요.
+              {formatResolvableAt(p.resolvableAt)} 결과 확정 예정
             </p>
           )}
           {p.isCorrect && !p.rewardClaimed && (
