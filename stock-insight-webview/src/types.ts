@@ -27,6 +27,11 @@ export interface FactorItem {
   description: string;
 }
 
+export interface StockMetric {
+  label: string;
+  value: string;
+}
+
 export interface FactorAnalysis {
   code: string;
   bullishFactors: FactorItem[];

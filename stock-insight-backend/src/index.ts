@@ -2,6 +2,7 @@ import "dotenv/config";
 import os from "node:os";
 import { createApp } from "./server.js";
 import { startPredictionScheduler } from "./services/predictionScheduler.js";
+import { warmStockIndex } from "./services/stockIndex.js";
 
 function getLanAddresses(): string[] {
   return Object.values(os.networkInterfaces())
@@ -21,3 +22,4 @@ app.listen(port, host, () => {
 });
 
 startPredictionScheduler();
+warmStockIndex();

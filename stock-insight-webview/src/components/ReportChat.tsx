@@ -1,12 +1,11 @@
 import { useRef, useState } from "react";
-import { Bot, Send, Sparkles, X } from "lucide-react";
+import { Bot, Send } from "lucide-react";
 import type { ChatMessage } from "../types";
 import { chatAboutStock } from "../api/client";
 import { getErrorMessage } from "../api/errors";
 
 interface Props {
   code: string;
-  stockName: string;
 }
 
 const QUICK_REPLIES = ["PER이 뭐야?", "이 뉴스가 왜 중요해?", "리포트 한줄로 요약해줘"];
@@ -19,8 +18,9 @@ function ChatAvatar() {
   );
 }
 
-export default function ReportChat({ code, stockName }: Props) {
-  const [open, setOpen] = useState(false);
+// 리포트 화면의 "챗봇에게 물어보기" 메뉴 안에 표시되는 내용. (다른 메뉴처럼 항상 렌더링되고,
+// 감싸는 Accordion의 화살표를 눌러야만 보인다 — 자체 열기/닫기 버튼은 갖지 않는다.)
+export default function ReportChat({ code }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -53,30 +53,8 @@ export default function ReportChat({ code, stockName }: Props) {
     }
   };
 
-  if (!open) {
-    return (
-      <button className="chat-fab" onClick={() => setOpen(true)}>
-        <span className="chat-fab-avatar">
-          <Sparkles size={16} />
-        </span>
-        이 리포트에 대해 물어보기
-      </button>
-    );
-  }
-
   return (
-    <div className="card chat-panel">
-      <div className="chat-header">
-        <ChatAvatar />
-        <div className="chat-header-text">
-          <span>{stockName} 리포트 도우미</span>
-          <span className="chat-header-sub">궁금한 건 편하게 물어보세요</span>
-        </div>
-        <button className="chat-close" onClick={() => setOpen(false)}>
-          <X size={18} />
-        </button>
-      </div>
-
+    <div>
       <div className="chat-messages" ref={listRef}>
         {messages.length === 0 && (
           <div className="chat-empty">

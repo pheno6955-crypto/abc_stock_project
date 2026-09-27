@@ -25,8 +25,17 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
+  /* 한글이 단어 중간에서 끊기지 않고 어절 단위로 줄바꿈되도록 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-tap-highlight-color: transparent;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--color-surface);
   color: var(--color-text-primary);
@@ -36,6 +45,7 @@ body {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--color-background);
   display: flex;
   flex-direction: column;
@@ -52,6 +62,34 @@ body {
 .app-header h1 {
   font-size: 18px;
   margin: 0;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.header-mascot {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.header-back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin-left: -6px;
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
 }
 
 .app-body {
@@ -86,7 +124,7 @@ body {
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 15px;
+  font-size: 16px; /* 16px 미만이면 iOS가 입력창 포커스 시 화면을 확대함 */
   margin-bottom: var(--space-md);
 }
 
@@ -199,16 +237,23 @@ body {
 
 .bottom-nav {
   display: flex;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: var(--color-background);
   border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .bottom-nav button {
   flex: 1;
-  padding: var(--space-md);
+  min-width: 0;
+  padding: 14px 2px;
   border: none;
   background: none;
   color: var(--color-text-secondary);
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -218,11 +263,37 @@ body {
 }
 
 .hero {
+  position: relative;
   background: linear-gradient(180deg, var(--color-surface), var(--color-background));
   border-radius: var(--radius-lg);
   padding: var(--space-xl) var(--space-lg);
   margin-bottom: var(--space-lg);
   text-align: center;
+}
+
+/* 카드 모서리에 살짝 걸쳐 보이는 마스코트 (장식용, 클릭 대상 아님) */
+.hero-mascot {
+  position: absolute;
+  top: -18px;
+  right: 14px;
+  width: 76px;
+  height: auto;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+
+.result-card {
+  position: relative;
+}
+
+.result-mascot {
+  position: absolute;
+  top: -16px;
+  right: 12px;
+  width: 60px;
+  height: auto;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
 }
 
 .hero-eyebrow {
@@ -235,13 +306,6 @@ body {
 .hero-title {
   font-size: 24px;
   line-height: 1.35;
-  margin: 0 0 var(--space-md) 0;
-}
-
-.hero-subtitle {
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
   margin: 0 0 var(--space-lg) 0;
 }
 
@@ -426,8 +490,7 @@ body {
 }
 
 .history-list {
-  max-height: calc(100vh - 220px);
-  overflow-y: auto;
+  /* 모바일에서 중첩 스크롤이 생기지 않도록 페이지 스크롤을 그대로 사용 */
 }
 
 .ranking-list {
@@ -541,6 +604,60 @@ body {
   background: rgba(0, 166, 80, 0.06);
 }
 
+/* 방향 예측 화면: 지금 기준가가 될 현재가 표시 */
+.current-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: var(--space-md) 0;
+  padding: 10px var(--space-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.current-price-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.current-price-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.current-price-change {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.current-price-change.up {
+  color: var(--color-up);
+}
+
+.current-price-change.down {
+  color: var(--color-down);
+}
+
+/* 최근 검색 전체 삭제 */
+.clear-recent-button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clear-recent-button:hover {
+  background: var(--color-surface);
+}
+
 .notice-card {
   display: flex;
   align-items: flex-start;
@@ -563,6 +680,27 @@ body {
 
 .notice-card strong {
   color: var(--color-text-primary);
+}
+
+.notice-title {
+  font-size: 14px !important;
+  font-weight: 700;
+  color: var(--color-text-primary) !important;
+  margin-bottom: 4px !important;
+}
+
+.notice-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notice-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
 }
 
 .factor-title.up {
@@ -793,61 +931,7 @@ body {
   display: inline-block;
 }
 
-/* 리포트 챗봇 */
-.chat-fab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: var(--space-md);
-  margin-bottom: var(--space-md);
-  border: 1px dashed var(--color-primary);
-  border-radius: var(--radius-md);
-  background: rgba(0, 166, 80, 0.06);
-  color: var(--color-primary);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.chat-fab-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff;
-  margin-right: 8px;
-}
-
-.chat-panel {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-md);
-}
-
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
-}
-
-.chat-header-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  font-weight: 700;
-}
-
-.chat-header-sub {
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
+/* 리포트 챗봇 (다른 메뉴처럼 아코디언 안에 들어감) */
 .chat-avatar {
   flex-shrink: 0;
   display: flex;
@@ -981,14 +1065,16 @@ body {
 
 .chat-input {
   flex: 1;
-  padding: var(--space-sm) var(--space-md);
+  min-width: 0;
+  padding: 10px var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 14px;
+  font-size: 16px; /* iOS 포커스 확대 방지 */
 }
 
 .chat-send {
-  width: 40px;
+  width: 44px;
+  flex-shrink: 0;
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-primary);
@@ -1002,4 +1088,379 @@ body {
 .chat-send:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ---- 모바일 최적화 ---- */
+/* 예측 이력 카드: 다른 화면과 같은 색 체계 (올리=빨강, 내리=파랑, 적중=초록, 대기/미적중=회색) */
+.history-card {
+  border-left: 3px solid var(--color-border);
+}
+
+.history-card.up {
+  border-left-color: var(--color-up);
+}
+
+.history-card.down {
+  border-left-color: var(--color-down);
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.history-head h2 {
+  margin: 0;
+}
+
+.status-chip,
+.direction-chip {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-chip.pending {
+  background: rgba(107, 114, 128, 0.12);
+  color: var(--color-text-secondary);
+}
+
+.status-chip.hit {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.status-chip.miss {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.direction-chip.up {
+  background: rgba(226, 63, 68, 0.1);
+  color: var(--color-up);
+}
+
+.direction-chip.down {
+  background: rgba(51, 102, 204, 0.1);
+  color: var(--color-down);
+}
+
+.history-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.history-price {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* 기준가: 파란색을 쓰면 "내리"(하락)로 오해할 수 있어 검은 글자 + 무채색 배경으로 표시 */
+.price-chip {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary);
+}
+
+/* 팀 검토용 임시 버튼 (실서비스 전환 시 제거) */
+.dev-seed-button {
+  width: 100%;
+  margin-bottom: var(--space-md);
+  border-style: dashed;
+}
+/* 모바일: 세로 스크롤을 줄이기 위해 여백·행간을 압축 */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 12px 16px;
+  }
+
+  .app-header h1 {
+    font-size: 17px;
+  }
+
+  .app-body {
+    padding: 12px 14px 16px;
+  }
+
+  /* 화면 최상단 제목(종목명, 랭킹 제목 등) */
+  .app-body > div > h2 {
+    font-size: 19px !important;
+    margin: 2px 0 10px;
+  }
+
+  .card {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .card h2 {
+    margin-bottom: 6px;
+  }
+
+  .summary-card h2,
+  .key-issues-card h2,
+  .investment-points-card h2 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+
+  .summary-items,
+  .investment-points-grid {
+    gap: 6px;
+  }
+
+  .summary-item,
+  .investment-point-item {
+    padding: 11px 14px;
+  }
+
+  .summary-item .summary-text {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .point-text {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .key-issue-row {
+    padding: 9px 12px;
+  }
+
+  .factor-item {
+    padding: 11px 14px;
+  }
+
+  .factor-list {
+    gap: 6px;
+  }
+
+  .hero {
+    padding: 22px 16px;
+    margin-bottom: 12px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+
+  .feature-card {
+    gap: 12px;
+  }
+
+  .feature-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .primary-button {
+    padding: 14px;
+    font-size: 15px;
+  }
+
+  .secondary-link {
+    padding: 10px 0;
+  }
+
+  .chat-messages {
+    max-height: 42vh;
+  }
+
+  .predict-buttons {
+    margin: 14px 0 !important;
+    gap: 10px;
+  }
+
+  .predict-button {
+    padding: 16px 10px;
+  }
+
+  .empty-state {
+    min-height: 150px;
+    padding: 20px 16px;
+  }
+
+  .disclaimer {
+    margin-top: 10px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .stock-list-item {
+    padding: 12px 4px;
+  }
+
+  .search-input {
+    margin-bottom: 10px;
+  }
+
+  .bottom-nav button {
+    padding: 11px 2px;
+  }
+
+  .ranking-row {
+    padding: 7px 10px;
+    gap: 10px;
+  }
+}
+
+/* ---- 리포트 메뉴 아코디언 (AI 분석 / 핵심 이슈 / 투자 포인트 / 주가 영향요인 분석) ---- */
+.card.accordion {
+  padding: 0;
+  overflow: hidden;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px var(--space-lg);
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.accordion-title svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.accordion-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.accordion.open .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+.accordion-body[hidden] {
+  display: none;
+}
+
+/* 펼친 영역 안의 카드는 바깥 카드와 구분되도록 흰 배경 */
+.accordion-body .card {
+  background: var(--color-background);
+  box-shadow: none;
+  margin-bottom: var(--space-sm);
+}
+
+.factor-price-row {
+  margin-bottom: var(--space-lg);
+}
+
+.factor-price-row .empty-state-badge {
+  margin-top: 0;
+}
+
+.factor-group + .factor-group {
+  margin-top: var(--space-md);
+}
+
+.factor-group h3 {
+  font-size: 15px;
+  margin: 0 0 var(--space-sm) 0;
+}
+
+@media (max-width: 480px) {
+  .accordion-header {
+    padding: 14px 16px;
+  }
+
+  .accordion-body {
+    padding: 0 16px 14px;
+  }
+}
+
+/* 이미 예측한 종목: 비활성 예측 버튼 */
+.predict-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.already-predicted .direction-chip {
+  vertical-align: baseline;
+}
+
+/* 투자 지표 (시가총액/PER/PBR 등) */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.metric-card {
+  padding: 14px 10px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  word-break: keep-all;
+}
+
+@media (max-width: 480px) {
+  .metric-card {
+    padding: 12px 6px;
+  }
+
+  .metric-value {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

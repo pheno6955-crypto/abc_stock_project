@@ -1,6 +1,8 @@
 import { Landmark } from "lucide-react";
 import type { PredictionResult } from "../types";
 import { nhBridge } from "../bridge/nhBridge";
+import { displayStockName } from "../utils/stockName";
+import ollieMascot from "../assets/ollie-mascot.png";
 
 // 실제 상품 캠페인 페이지가 정해지기 전까지의 임시 연결 대상 (농협은행 공식 인터넷뱅킹 홈).
 // 이후 실제 펀드/ETF 상품 URL이 정해지면 이 상수만 교체하면 됨.
@@ -22,10 +24,11 @@ export default function Result({ result, onDone }: Props) {
 
   return (
     <div>
-      <div className="card" style={{ textAlign: "center" }}>
+      <div className="card result-card" style={{ textAlign: "center" }}>
+        <img src={ollieMascot} alt="" className="result-mascot" />
         <h2>예측이 제출되었습니다</h2>
         <p>
-          {result.stockName} 내일 방향: <strong>{result.direction === "UP" ? "상승 ▲" : "하락 ▼"}</strong>
+          {displayStockName(result.stockName, result.code)} 내일 방향: <strong>{result.direction === "UP" ? "올리 ▲" : "내리 ▼"}</strong>
         </p>
         <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
           제출 시점 기준가 {result.referencePrice.toLocaleString()}원

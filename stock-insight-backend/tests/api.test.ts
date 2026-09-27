@@ -21,6 +21,66 @@ test("GET /api/stocks/search returns matching stocks", async () => {
   assert.ok(res.body.some((s: { code: string }) => s.code === "005930"));
 });
 
+test("GET /api/stocks/search matches the middle of a name ('전자' finds 삼성전자)", async () => {
+  const res = await request(app).get(`/api/stocks/search?q=${encodeURIComponent("전자")}`);
+  assert.equal(res.status, 200);
+  assert.ok(res.body.some((s: { code: string }) => s.code === "005930"));
+});
+
+test("GET /api/stocks/search still finds ETFs (TIGER, KODEX) and matches mid-name", async () => {
+  for (const q of ["tiger", "KODEX", "미국"]) {
+    const res = await request(app).get(`/api/stocks/search?q=${encodeURIComponent(q)}`);
+    assert.equal(res.status, 200);
+    assert.ok(res.body.length > 0, `${q}: no results`);
+  }
+  const res = await request(app).get("/api/stocks/search?q=tiger");
+  assert.ok(res.body.some((s: { name: string }) => /^TIGER/i.test(s.name)));
+});
+
+test("GET /api/stocks/:code/metrics returns real valuation metrics (실데이터)", async () => {
+  const res = await request(app).get("/api/stocks/005930/metrics");
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray(res.body));
+  assert.ok(res.body.length > 0);
+  const byLabel = new Map(res.body.map((m: { label: string; value: string }) => [m.label, m.value]));
+  assert.ok(byLabel.has("PER"));
+  assert.ok(byLabel.has("시가총액"));
+  for (const m of res.body as { label: string; value: string }[]) {
+    assert.equal(typeof m.label, "string");
+    assert.equal(typeof m.value, "string");
+    assert.ok(m.value.length > 0);
+    assert.ok(!m.value.includes("\n"), `${m.label} 값이 여러 줄이면 안 됨: ${m.value}`);
+  }
+  // 금액류(시가총액/EPS/BPS)는 상세 금액 대신 한 줄짜리 대략적인 금액("약 N조원"/"약 N.N만원")으로 나와야 함
+  assert.match(byLabel.get("시가총액")!, /^약 [\d,.]+(조원|억원)$/);
+  if (byLabel.has("EPS")) assert.match(byLabel.get("EPS")!, /^(약 [\d.]+(만원|억원)|[\d,]+원)$/);
+  if (byLabel.has("BPS")) assert.match(byLabel.get("BPS")!, /^(약 [\d.]+(만원|억원)|[\d,]+원)$/);
+});
+
+test("GET /api/stocks/:code/metrics returns ETF-specific metrics (NAV/수익률 등, PER 없음)", async () => {
+  const res = await request(app).get("/api/stocks/0183J0/metrics"); // TIGER 미국우주테크 (ETF)
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray(res.body));
+  assert.ok(res.body.length > 0);
+  const byLabel = new Map(res.body.map((m: { label: string; value: string }) => [m.label, m.value]));
+  assert.ok(byLabel.has("NAV"));
+  assert.ok(!byLabel.has("PER")); // ETF는 개별 기업 지표(PER/PBR/EPS 등)가 없음
+  for (const m of res.body as { label: string; value: string }[]) {
+    assert.ok(m.value.length > 0);
+    assert.ok(!m.value.includes("\n"));
+  }
+  // NAV/52주 최고/최저도 주식의 EPS/BPS처럼 상세 금액 대신 대략적인 한 줄 금액으로 나와야 함
+  const approxWonPattern = /^(약 [\d.]+(만원|억원)|[\d,.]+원)$/;
+  assert.match(byLabel.get("NAV")!, approxWonPattern);
+  if (byLabel.has("52주 최고")) assert.match(byLabel.get("52주 최고")!, approxWonPattern);
+  if (byLabel.has("52주 최저")) assert.match(byLabel.get("52주 최저")!, approxWonPattern);
+});
+
+test("GET /api/stocks/:code/metrics 404s for an unknown stock code", async () => {
+  const res = await request(app).get("/api/stocks/000000/metrics");
+  assert.equal(res.status, 404);
+});
+
 test("GET /api/stocks/:code/report returns a report (mock, no API key)", async () => {
   const res = await request(app).get("/api/stocks/005930/report");
   assert.equal(res.status, 200);
@@ -78,6 +138,64 @@ test("GET /api/stocks/categories/:id/stocks merges multiple industries and re-so
   assert.ok(res.body.length > 0);
   for (let i = 1; i < res.body.length; i++) {
     assert.ok(res.body[i - 1].marketValue >= res.body[i].marketValue);
+  }
+});
+
+test("POST /api/stocks/recent-prices refreshes prices for given code/name/market items", async () => {
+  const res = await request(app)
+    .post("/api/stocks/recent-prices")
+    .send({ items: [{ code: "005930", name: "삼성전자", market: "KOSPI" }] });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.length, 1);
+  assert.equal(res.body[0].code, "005930");
+  assert.equal(typeof res.body[0].closePrice, "number");
+});
+
+test("POST /api/stocks/recent-prices ignores malformed entries and returns [] for empty input", async () => {
+  const empty = await request(app).post("/api/stocks/recent-prices").send({ items: [] });
+  assert.deepEqual(empty.body, []);
+
+  const malformed = await request(app)
+    .post("/api/stocks/recent-prices")
+    .send({ items: [{ code: "005930" }, null, "oops"] });
+  assert.equal(malformed.status, 200);
+  assert.equal(malformed.body.length, 0);
+});
+
+test("POST /api/stocks/recent-prices requires items to be an array", async () => {
+  const res = await request(app).post("/api/stocks/recent-prices").send({});
+  assert.equal(res.status, 400);
+});
+
+test("GET /api/stocks/categories includes ETF and its stocks are top ETFs by market cap", async () => {
+  const cats = await request(app).get("/api/stocks/categories");
+  const etf = cats.body.find((c: { label: string }) => c.label === "ETF");
+  assert.ok(etf, "ETF category missing");
+
+  const res = await request(app).get(`/api/stocks/categories/${etf.id}/stocks`);
+  assert.equal(res.status, 200);
+  assert.equal(res.body.length, 10);
+  for (let i = 1; i < res.body.length; i++) {
+    assert.ok(res.body[i - 1].marketValue >= res.body[i].marketValue);
+  }
+  // ETF만 나오는지: 삼성전자 같은 일반 주식이 섞이면 안 됨
+  assert.ok(!res.body.some((s: { code: string }) => s.code === "005930"));
+});
+
+test("GET /api/stocks/search with empty query returns 10 popular stocks", async () => {
+  const res = await request(app).get("/api/stocks/search");
+  assert.equal(res.status, 200);
+  assert.equal(res.body.length, 10);
+});
+
+test("카테고리 칩은 ETF가 인기 종목 바로 옆(첫 번째)이고, 모든 카테고리가 10개씩 종목을 돌려준다", async () => {
+  const cats = await request(app).get("/api/stocks/categories");
+  assert.equal(cats.body[0].label, "ETF");
+
+  for (const c of cats.body as { id: number; label: string }[]) {
+    const res = await request(app).get(`/api/stocks/categories/${c.id}/stocks`);
+    assert.equal(res.status, 200, c.label);
+    assert.equal(res.body.length, 10, `${c.label}: expected 10 stocks`);
   }
 });
 
@@ -144,10 +262,64 @@ test("prediction submit sets a future resolvableAt and refuses early resolve", a
   assert.match(earlyResolveRes.body.error, /판정 시점이 아니에요/);
 });
 
+test("같은 종목에 미확정 예측이 있으면 올리/내리 어느 쪽이든 추가 예측이 거절된다", async () => {
+  const userId = `dup-test-${Date.now()}`;
+  const body = { code: "005930", stockName: "삼성전자", userId };
+
+  const first = await request(app).post("/api/predictions").send({ ...body, direction: "UP" });
+  assert.equal(first.status, 201);
+
+  const sameDirection = await request(app).post("/api/predictions").send({ ...body, direction: "UP" });
+  assert.equal(sameDirection.status, 409);
+  const oppositeDirection = await request(app).post("/api/predictions").send({ ...body, direction: "DOWN" });
+  assert.equal(oppositeDirection.status, 409);
+  assert.match(oppositeDirection.body.error, /이미 이 종목에 예측을 제출했어요/);
+
+  const list = await request(app).get("/api/predictions").query({ userId });
+  assert.equal(list.body.length, 1);
+
+  // 다른 종목, 다른 사용자는 영향받지 않는다
+  const otherStock = await request(app)
+    .post("/api/predictions")
+    .send({ code: "000660", stockName: "SK하이닉스", userId, direction: "DOWN" });
+  assert.equal(otherStock.status, 201);
+  const otherUser = await request(app)
+    .post("/api/predictions")
+    .send({ ...body, userId: `${userId}-other`, direction: "DOWN" });
+  assert.equal(otherUser.status, 201);
+});
+
+test("동시에 같은 종목을 올리/내리로 제출해도 한 건만 저장된다", async () => {
+  const userId = `race-test-${Date.now()}`;
+  const send = (direction: string) =>
+    request(app).post("/api/predictions").send({ code: "005930", stockName: "삼성전자", userId, direction });
+  const results = await Promise.all([send("UP"), send("DOWN"), send("UP")]);
+
+  assert.equal(results.filter((r) => r.status === 201).length, 1);
+  assert.equal(results.filter((r) => r.status === 409).length, 2);
+  const list = await request(app).get("/api/predictions").query({ userId });
+  assert.equal(list.body.length, 1);
+});
+
+test("예측이 확정(판정)된 뒤에는 같은 종목에 다시 예측할 수 있다", async () => {
+  const userId = `again-test-${Date.now()}`;
+  const body = { code: "005930", stockName: "삼성전자", userId, direction: "UP" };
+
+  const first = await request(app).post("/api/predictions").send(body);
+  assert.equal(first.status, 201);
+  updatePrediction(first.body.id, { resolvableAt: new Date(Date.now() - 1000).toISOString() });
+  const resolved = await request(app).post(`/api/predictions/${first.body.id}/resolve`);
+  assert.equal(resolved.status, 200);
+
+  const second = await request(app).post("/api/predictions").send({ ...body, direction: "DOWN" });
+  assert.equal(second.status, 201);
+});
+
 test("prediction resolve -> claim-reward flow once resolvableAt has passed (real Naver price)", async () => {
+  // 같은 사용자·종목의 미확정 예측은 중복 불가라, 위 테스트(삼성전자)와 다른 종목을 사용한다.
   const submitRes = await request(app)
     .post("/api/predictions")
-    .send({ code: "005930", stockName: "삼성전자", direction: "UP", userId: "test-user" });
+    .send({ code: "035420", stockName: "NAVER", direction: "UP", userId: "test-user" });
   assert.equal(submitRes.status, 201);
 
   // resolvableAt을 과거로 앞당겨, 다음 거래일 종가 확정 이후 상황을 시뮬레이션한다.
@@ -189,7 +361,7 @@ test("POST /api/predictions/resolve-pending only resolves predictions past resol
 
   const dueRes = await request(app)
     .post("/api/predictions")
-    .send({ code: "000660", stockName: "SK하이닉스", direction: "DOWN", userId: "test-user" });
+    .send({ code: "005380", stockName: "현대차", direction: "DOWN", userId: "test-user" });
   assert.equal(dueRes.status, 201);
   updatePrediction(dueRes.body.id, { resolvableAt: new Date(Date.now() - 1000).toISOString() });
 
@@ -203,6 +375,55 @@ test("POST /api/predictions/resolve-pending only resolves predictions past resol
   const notYet = afterListRes.body.find((p: { id: string }) => p.id === notYetRes.body.id);
   assert.ok(due.resolvedAt !== null);
   assert.ok(notYet.resolvedAt === null);
+});
+
+test("POST /api/predictions/seed-demo creates hit/miss/pending example predictions for the given user", async () => {
+  const userId = `seed-test-${Date.now()}`;
+  const res = await request(app).post("/api/predictions/seed-demo").send({ userId });
+  assert.equal(res.status, 201);
+  assert.ok(res.body.created >= 3);
+
+  const list = await request(app).get("/api/predictions").query({ userId });
+  const statuses = list.body.map((p: { resolvedAt: string | null; isCorrect: boolean | null }) =>
+    p.resolvedAt === null ? "pending" : p.isCorrect ? "hit" : "miss"
+  );
+  assert.ok(statuses.includes("hit"), "적중 예시가 있어야 함");
+  assert.ok(statuses.includes("miss"), "미적중 예시가 있어야 함");
+  assert.ok(statuses.includes("pending"), "확정 대기 예시가 있어야 함");
+  for (const p of list.body as { referencePrice: number; userId: string }[]) {
+    assert.equal(p.userId, userId);
+    assert.equal(typeof p.referencePrice, "number");
+  }
+});
+
+test("POST /api/predictions/seed-demo requires a userId", async () => {
+  const res = await request(app).post("/api/predictions/seed-demo").send({});
+  assert.equal(res.status, 400);
+});
+
+test("POST /api/predictions/seed-ranking-demo seeds named users in hits-descending order for the ranking", async () => {
+  const res = await request(app).post("/api/predictions/seed-ranking-demo").send({});
+  assert.equal(res.status, 201);
+  assert.ok(res.body.created > 0);
+  assert.deepEqual(res.body.users, ["하현석", "조윤신", "김태영", "여효주"]);
+
+  const ranking = await request(app).get("/api/rankings").query({ period: "week" });
+  assert.equal(ranking.status, 200);
+  const byName = new Map<string, { userId: string; hits: number; attempts: number }>(
+    ranking.body.entries.map((e: { userId: string; hits: number; attempts: number }) => [e.userId, e])
+  );
+  assert.equal(byName.get("하현석")!.hits, 4);
+  assert.equal(byName.get("하현석")!.attempts, 5);
+  assert.equal(byName.get("조윤신")!.hits, 3);
+  assert.equal(byName.get("김태영")!.hits, 2);
+  assert.equal(byName.get("여효주")!.hits, 1);
+
+  // 적중 횟수 내림차순으로 랭킹에 나와야 함
+  const order = ranking.body.entries.map((e: { userId: string }) => e.userId);
+  const idx = (name: string) => order.indexOf(name);
+  assert.ok(idx("하현석") < idx("조윤신"));
+  assert.ok(idx("조윤신") < idx("김태영"));
+  assert.ok(idx("김태영") < idx("여효주"));
 });
 
 test("computeStreak counts consecutive KST days and stops at a gap", async () => {

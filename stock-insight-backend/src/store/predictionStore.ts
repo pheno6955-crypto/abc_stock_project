@@ -34,6 +34,19 @@ export function getPrediction(id: string): PredictionResult | undefined {
   return predictions.get(id);
 }
 
+// 테스트/시연용으로 만든 예측 데이터를 정리할 때 사용 (실제 사용자 데이터는 이 함수로 지우지 않을 것).
+export function deletePredictionsByUser(userId: string): number {
+  let removed = 0;
+  for (const [id, p] of predictions) {
+    if (p.userId === userId) {
+      predictions.delete(id);
+      removed += 1;
+    }
+  }
+  if (removed > 0) persist();
+  return removed;
+}
+
 export function listPredictions(): PredictionResult[] {
   return Array.from(predictions.values()).sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()

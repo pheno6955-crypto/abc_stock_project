@@ -5,7 +5,9 @@ import {
   searchStocks,
   getIndustryStocks,
   attachPrices,
+  getStockMetrics,
 } from "../services/naverFinance.js";
+import { getTopEtfs } from "../services/stockIndex.js";
 import type { ChatMessage } from "../types.js";
 
 const SEARCH_PRICE_ENRICH_LIMIT = 10;
@@ -32,13 +34,22 @@ const POPULAR_STOCKS = [
   { code: "035420", name: "NAVER", market: "KOSPI" as const },
   { code: "035720", name: "카카오", market: "KOSPI" as const },
   { code: "005380", name: "현대차", market: "KOSPI" as const },
+  { code: "000270", name: "기아", market: "KOSPI" as const },
+  { code: "373220", name: "LG에너지솔루션", market: "KOSPI" as const },
+  { code: "207940", name: "삼성바이오로직스", market: "KOSPI" as const },
+  { code: "068270", name: "셀트리온", market: "KOSPI" as const },
+  { code: "105560", name: "KB금융", market: "KOSPI" as const },
 ];
 
 // industryIds는 네이버 금융의 실제 업종 분류 코드 (https://m.stock.naver.com/api/stocks/industry 참고).
 // 79개 전체 업종 중, 사용자에게 익숙하고 관심도가 높은 5개 큰 섹터로만 선별·통합
 // (예: IT·게임은 "IT서비스"+"게임·엔터" 두 업종을 합쳐서 하나의 카테고리로 보여줌).
 // id는 이 앱에서만 쓰는 별도 식별자로, 네이버 업종 코드와는 무관함.
-const CATEGORIES = [
+// ETF는 업종이 아니라 자체 목록(시가총액 상위 ETF)을 쓰므로 industryIds 대신 etf 플래그로 구분한다.
+// 카테고리별로 보여줄 종목 수 (칩 순서는 이 배열 순서를 따름)
+const CATEGORY_STOCK_LIMIT = 10;
+const CATEGORIES: { id: number; label: string; industryIds: number[]; etf?: boolean }[] = [
+  { id: 6, label: "ETF", industryIds: [], etf: true },
   { id: 1, label: "반도체", industryIds: [278] },
   { id: 2, label: "자동차", industryIds: [273] },
   { id: 3, label: "바이오·제약", industryIds: [261] },
@@ -63,6 +74,22 @@ stocksRouter.get("/search", async (req, res) => {
   }
 });
 
+// "최근 검색" 목록용. 프론트가 브라우저에 저장해둔 종목 식별자(code/name/market)를 보내면
+// 최신 현재가·등락률만 다시 붙여서 돌려준다 (가격이 예전 그대로 굳어 보이지 않도록).
+const RECENT_PRICE_LIMIT = 30;
+stocksRouter.post("/recent-prices", async (req, res) => {
+  const { items } = req.body as {
+    items?: { code: string; name: string; market: "KOSPI" | "KOSDAQ" }[];
+  };
+  if (!Array.isArray(items)) return res.status(400).json({ error: "items array is required" });
+
+  const safeItems = items.filter(
+    (i): i is { code: string; name: string; market: "KOSPI" | "KOSDAQ" } =>
+      !!i && typeof i.code === "string" && typeof i.name === "string"
+  );
+  res.json(await attachPrices(safeItems.slice(0, RECENT_PRICE_LIMIT)));
+});
+
 stocksRouter.get("/categories", (_req, res) => {
   res.json(CATEGORIES.map(({ id, label }) => ({ id, label })));
 });
@@ -73,15 +100,17 @@ stocksRouter.get("/categories/:id/stocks", async (req, res) => {
   if (!category) return res.status(404).json({ error: "Unknown category id" });
 
   try {
-    // 업종을 여러 개 합친 카테고리(예: IT·게임)는 각각 더 넉넉히 가져온 뒤 시가총액 기준으로 다시 합쳐 정렬한다.
-    const perIndustryLimit = category.industryIds.length > 1 ? 10 : 6;
+    if (category.etf) {
+      return res.json(await attachPrices(await getTopEtfs(CATEGORY_STOCK_LIMIT)));
+    }
+    // 업종을 여러 개 합친 카테고리(예: IT·게임)는 각 업종에서 상위 종목을 가져온 뒤 시가총액 기준으로 다시 합쳐 정렬한다.
     const lists = await Promise.all(
-      category.industryIds.map((industryId) => getIndustryStocks(industryId, perIndustryLimit))
+      category.industryIds.map((industryId) => getIndustryStocks(industryId, CATEGORY_STOCK_LIMIT))
     );
     const merged = lists
       .flat()
       .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
-      .slice(0, 6);
+      .slice(0, CATEGORY_STOCK_LIMIT);
     res.json(merged);
   } catch (err) {
     console.warn(`[stocks] category stocks failed for ${id}:`, (err as Error).message);
@@ -124,6 +153,22 @@ stocksRouter.post("/:code/chat", async (req, res) => {
   } catch (err) {
     console.warn(`[stocks] chat failed for ${req.params.code}:`, (err as Error).message);
     res.status(502).json({ error: "채팅 응답 생성에 실패했습니다. 잠시 후 다시 시도해주세요." });
+  }
+});
+
+stocksRouter.get("/:code/metrics", async (req, res) => {
+  try {
+    await getStockPrice(req.params.code); // 존재하는 종목코드인지만 확인
+  } catch (err) {
+    console.warn(`[stocks] price lookup failed for ${req.params.code}:`, (err as Error).message);
+    return res.status(404).json({ error: "존재하지 않거나 조회할 수 없는 종목코드입니다." });
+  }
+  try {
+    const metrics = await getStockMetrics(req.params.code);
+    res.json(metrics);
+  } catch (err) {
+    console.warn(`[stocks] metrics lookup failed for ${req.params.code}:`, (err as Error).message);
+    res.status(502).json({ error: "투자 지표 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });
   }
 });
 

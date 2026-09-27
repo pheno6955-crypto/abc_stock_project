@@ -18,10 +18,10 @@ function PriceBadge({ priceChangePct }: { priceChangePct: number }) {
 
 interface Props {
   stock: StockSummary;
-  onNext: () => void;
 }
 
-export default function FactorAnalysis({ stock, onNext }: Props) {
+// 리포트 화면의 "주가 영향요인 분석" 메뉴 안에 표시되는 내용. (별도 화면이 아님)
+export default function FactorAnalysis({ stock }: Props) {
   const [data, setData] = useState<FactorAnalysisType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loadedCodeRef = useRef<string | null>(null);
@@ -43,8 +43,8 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
 
   if (error) {
     return (
-      <div className="card">
-        <p>{error}</p>
+      <div>
+        <p style={{ color: "var(--color-up)" }}>{error}</p>
         <button className="primary-button" onClick={load}>
           다시 시도
         </button>
@@ -57,22 +57,16 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
       <div>
         <div className="ai-loading-status">
           <Bot size={16} />
-          <span>AI가 상승·하락 요인을 분석하고 있어요</span>
+          <span>AI가 올리·내리 포인트를 분석하고 있어요</span>
           <span className="ai-loading-dots">
             <span className="chat-typing-dot" />
             <span className="chat-typing-dot" />
             <span className="chat-typing-dot" />
           </span>
         </div>
-        <Skeleton width="45%" height={20} />
-        <div className="card" style={{ marginTop: "var(--space-md)" }}>
-          <Skeleton width="20%" height={16} />
-          <div style={{ marginTop: "var(--space-md)" }}>
-            <Skeleton width="100%" height={56} />
-            <div style={{ marginTop: "var(--space-sm)" }}>
-              <Skeleton width="100%" height={56} />
-            </div>
-          </div>
+        <Skeleton width="100%" height={56} />
+        <div style={{ marginTop: "var(--space-sm)" }}>
+          <Skeleton width="100%" height={56} />
         </div>
       </div>
     );
@@ -88,18 +82,24 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-sm)" }}>
-        <h2 style={{ fontSize: 20, margin: 0 }}>{stock.name} 영향요인</h2>
-        {priceChangePct != null && <PriceBadge priceChangePct={priceChangePct} />}
-      </div>
+      {priceChangePct != null && (
+        <div className="factor-price-row">
+          <PriceBadge priceChangePct={priceChangePct} />
+        </div>
+      )}
 
-      {!hasFactors && data.note && (
+      {!hasFactors && (
         <div className="card empty-state">
           <span className="empty-state-icon">
             <Bot size={32} />
           </span>
-          <p className="empty-state-title">아직 AI 분석이 연결되지 않았어요</p>
-          <p className="empty-state-desc">{data.note}</p>
+          <p className="empty-state-title">
+            {data.note ? "아직 AI 분석이 연결되지 않았어요" : "올리·내리 포인트를 찾지 못했어요"}
+          </p>
+          <p className="empty-state-desc">
+            {data.note ??
+              "이 종목과 직접 관련된 뉴스가 충분하지 않아 분석할 요인이 없어요. 잠시 후 다시 확인해보세요."}
+          </p>
         </div>
       )}
 
@@ -115,10 +115,10 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
       )}
 
       {data.bullishFactors.length > 0 && (
-        <div className="card">
-          <h2 className="card-title factor-title up">
-            <TrendingUp size={18} /> 상승 요인
-          </h2>
+        <div className="factor-group">
+          <h3 className="card-title factor-title up">
+            <TrendingUp size={16} /> 올리 포인트
+          </h3>
           <div className="factor-list">
             {data.bullishFactors.map((f) => (
               <div key={f.label} className="factor-item up">
@@ -131,10 +131,10 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
       )}
 
       {data.bearishFactors.length > 0 && (
-        <div className="card">
-          <h2 className="card-title factor-title down">
-            <TrendingDown size={18} /> 하락 요인
-          </h2>
+        <div className="factor-group">
+          <h3 className="card-title factor-title down">
+            <TrendingDown size={16} /> 내리 포인트
+          </h3>
           <div className="factor-list">
             {data.bearishFactors.map((f) => (
               <div key={f.label} className="factor-item down">
@@ -145,12 +145,6 @@ export default function FactorAnalysis({ stock, onNext }: Props) {
           </div>
         </div>
       )}
-
-      {hasFactors && <p className="bridge-copy">지금까지 살펴본 내용을 참고해서, 내일 주가 방향을 예측해보세요</p>}
-
-      <button className="primary-button" onClick={onNext}>
-        방향성 예측 참여하기
-      </button>
     </div>
   );
 }

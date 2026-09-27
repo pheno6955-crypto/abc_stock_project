@@ -1,10 +1,23 @@
 import { Router } from "express";
 import type { PredictionDirection, PredictionResult } from "../types.js";
-import { getPrediction, listPredictions, savePrediction, updatePrediction } from "../store/predictionStore.js";
+import {
+  getPrediction,
+  listPredictions,
+  savePrediction,
+  updatePrediction,
+  deletePredictionsByUser,
+} from "../store/predictionStore.js";
 import { getStockPrice } from "../services/naverFinance.js";
 import { nextResolvableTime } from "../utils/tradingCalendar.js";
 
 export const predictionsRouter = Router();
+
+const DUPLICATE_PREDICTION_MESSAGE =
+  "이미 이 종목에 예측을 제출했어요. 결과가 확정된 뒤에 다시 참여할 수 있어요.";
+
+function hasPendingPrediction(userId: string, code: string): boolean {
+  return listPredictions().some((p) => p.userId === userId && p.code === code && p.resolvedAt === null);
+}
 
 predictionsRouter.post("/", async (req, res) => {
   const { code, stockName, direction, userId } = req.body as {
@@ -21,6 +34,11 @@ predictionsRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: "code, stockName, direction(UP|DOWN), userId are required" });
   }
 
+  // 같은 종목에 결과가 확정되지 않은 예측이 이미 있으면 추가 예측 불가 (올리/내리 동시 선택, 중복 제출 방지)
+  if (hasPendingPrediction(userId, code)) {
+    return res.status(409).json({ error: DUPLICATE_PREDICTION_MESSAGE });
+  }
+
   let referencePrice: number;
   try {
     console.log(`[predictions] fetching price for code: ${code}`);
@@ -29,6 +47,12 @@ predictionsRouter.post("/", async (req, res) => {
   } catch (err) {
     console.error(`[predictions] price lookup failed for ${code}:`, (err as Error).message);
     return res.status(502).json({ error: "현재가 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });
+  }
+
+  // 현재가 조회(await) 사이에 같은 요청이 먼저 저장됐을 수 있어, 저장 직전에 한 번 더 확인한다.
+  // (이 확인과 savePrediction 사이에는 await가 없어 동시 요청이 끼어들 수 없음)
+  if (hasPendingPrediction(userId, code)) {
+    return res.status(409).json({ error: DUPLICATE_PREDICTION_MESSAGE });
   }
 
   const now = new Date();
@@ -55,6 +79,144 @@ predictionsRouter.get("/", (req, res) => {
   const { userId } = req.query as { userId?: string };
   const predictions = userId ? listPredictions().filter((p) => p.userId === userId) : listPredictions();
   res.json(predictions);
+});
+
+// 팀 검토/화면 점검용 예시 데이터. 적중·미적중·확정 대기 상태를 실제로 눈으로 보기 위해
+// 지정한 userId 앞으로 확정된(과거 시점) 예측 몇 건을 바로 만들어 넣는다.
+// TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용, 실제 서비스 로직과 무관).
+const DEMO_PREDICTION_SPECS: {
+  code: string;
+  stockName: string;
+  direction: PredictionDirection;
+  actualDirection: PredictionDirection | null; // null이면 아직 확정 대기 상태로 만든다
+  rewardClaimed: boolean;
+}[] = [
+  { code: "005930", stockName: "삼성전자", direction: "UP", actualDirection: "UP", rewardClaimed: true },
+  { code: "000660", stockName: "SK하이닉스", direction: "DOWN", actualDirection: "DOWN", rewardClaimed: false },
+  { code: "035420", stockName: "NAVER", direction: "UP", actualDirection: "DOWN", rewardClaimed: false },
+  { code: "035720", stockName: "카카오", direction: "DOWN", actualDirection: "UP", rewardClaimed: false },
+  { code: "005380", stockName: "현대차", direction: "UP", actualDirection: null, rewardClaimed: false },
+];
+
+predictionsRouter.post("/seed-demo", async (req, res) => {
+  const { userId } = req.body as { userId?: string };
+  if (!userId) return res.status(400).json({ error: "userId is required" });
+
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const created: PredictionResult[] = [];
+  for (const [i, spec] of DEMO_PREDICTION_SPECS.entries()) {
+    let referencePrice: number;
+    try {
+      referencePrice = (await getStockPrice(spec.code)).closePrice;
+    } catch {
+      referencePrice = 50000; // 조회 실패 시에도 시연은 가능하도록 대체값 사용
+    }
+    const resolved = spec.actualDirection !== null;
+    const prediction: PredictionResult = {
+      id: `demo-${userId}-${spec.code}-${now}-${i}`,
+      userId,
+      code: spec.code,
+      stockName: spec.stockName,
+      direction: spec.direction,
+      referencePrice,
+      actualDirection: spec.actualDirection,
+      isCorrect: resolved ? spec.actualDirection === spec.direction : null,
+      rewardClaimed: spec.rewardClaimed,
+      submittedAt: new Date(now - (i + 2) * DAY_MS).toISOString(),
+      resolvableAt: resolved
+        ? new Date(now - (i + 1) * DAY_MS).toISOString()
+        : new Date(now + 3 * 60 * 60 * 1000).toISOString(),
+      resolvedAt: resolved ? new Date(now - i * DAY_MS).toISOString() : null,
+    };
+    savePrediction(prediction);
+    created.push(prediction);
+  }
+
+  res.status(201).json({ created: created.length, predictions: created });
+});
+
+// 랭킹 화면 점검용 예시 데이터. 이름 있는 사용자 여러 명이 서로 다른 승패 기록을 가진 상태로
+// 랭킹에 바로 나오도록 만든다 (userId 자체를 이름으로 써서, 프론트가 그대로 화면에 보여줌).
+// TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용).
+const RANKING_DEMO_USERS: { userId: string; results: boolean[] }[] = [
+  { userId: "하현석", results: [true, true, true, true, false] }, // 5전 4승 1패
+  { userId: "조윤신", results: [true, true, true, false] }, // 4전 3승 1패
+  { userId: "김태영", results: [true, true, false] }, // 3전 2승 1패
+  { userId: "여효주", results: [true, false] }, // 2전 1승 1패
+];
+
+const RANKING_DEMO_STOCK_POOL: { code: string; stockName: string }[] = [
+  { code: "005930", stockName: "삼성전자" },
+  { code: "000660", stockName: "SK하이닉스" },
+  { code: "035420", stockName: "NAVER" },
+  { code: "035720", stockName: "카카오" },
+  { code: "005380", stockName: "현대차" },
+  { code: "000270", stockName: "기아" },
+  { code: "373220", stockName: "LG에너지솔루션" },
+  { code: "207940", stockName: "삼성바이오로직스" },
+  { code: "068270", stockName: "셀트리온" },
+  { code: "105560", stockName: "KB금융" },
+];
+
+predictionsRouter.post("/seed-ranking-demo", async (_req, res) => {
+  const now = Date.now();
+  const HOUR_MS = 60 * 60 * 1000;
+  const priceCache = new Map<string, number>();
+
+  async function priceFor(code: string): Promise<number> {
+    if (!priceCache.has(code)) {
+      try {
+        priceCache.set(code, (await getStockPrice(code)).closePrice);
+      } catch {
+        priceCache.set(code, 50000); // 조회 실패해도 시연은 가능하도록 대체값 사용
+      }
+    }
+    return priceCache.get(code)!;
+  }
+
+  let poolIndex = 0;
+  const created: PredictionResult[] = [];
+  for (const user of RANKING_DEMO_USERS) {
+    for (const [i, hit] of user.results.entries()) {
+      const stock = RANKING_DEMO_STOCK_POOL[poolIndex % RANKING_DEMO_STOCK_POOL.length];
+      poolIndex += 1;
+      const direction: PredictionDirection = i % 2 === 0 ? "UP" : "DOWN";
+      const actualDirection: PredictionDirection = hit
+        ? direction
+        : direction === "UP"
+          ? "DOWN"
+          : "UP";
+      const prediction: PredictionResult = {
+        id: `rank-demo-${user.userId}-${stock.code}-${i}-${now}`,
+        userId: user.userId,
+        code: stock.code,
+        stockName: stock.stockName,
+        direction,
+        referencePrice: await priceFor(stock.code),
+        actualDirection,
+        isCorrect: hit,
+        rewardClaimed: hit,
+        submittedAt: new Date(now - (i + 2) * HOUR_MS).toISOString(),
+        resolvableAt: new Date(now - (i + 1) * HOUR_MS).toISOString(),
+        resolvedAt: new Date(now - i * HOUR_MS).toISOString(),
+      };
+      savePrediction(prediction);
+      created.push(prediction);
+    }
+  }
+
+  res.status(201).json({ created: created.length, users: RANKING_DEMO_USERS.map((u) => u.userId) });
+});
+
+// 테스트 중 만들어진 특정 userId의 예측을 지운다 (실제 회원 식별자를 함부로 지우지 않도록,
+// 반드시 정확한 userId를 알고 있을 때만 호출하는 용도 — 명확히 테스트 데이터인 경우에만 사용할 것).
+// TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용).
+predictionsRouter.post("/dev-purge-user", (req, res) => {
+  const { userId } = req.body as { userId?: string };
+  if (!userId) return res.status(400).json({ error: "userId is required" });
+  res.json({ removed: deletePredictionsByUser(userId) });
 });
 
 // 다음 거래일 종가 확정 후에만 판정 가능. resolvableAt 이전 호출은 명시적으로 거절한다.

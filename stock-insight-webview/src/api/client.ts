@@ -4,6 +4,7 @@ import type {
   StockCategory,
   StockReport,
   FactorAnalysis,
+  StockMetric,
   PredictionDirection,
   PredictionResult,
   ChatMessage,
@@ -34,6 +35,15 @@ export async function getCategoryStocks(categoryId: number): Promise<StockSummar
   return res.data;
 }
 
+// "최근 검색" 목록에 최신 현재가·등락률을 다시 붙여서 가져온다.
+export async function getRecentSearchPrices(
+  items: { code: string; name: string; market: "KOSPI" | "KOSDAQ" }[]
+): Promise<StockSummary[]> {
+  if (items.length === 0) return [];
+  const res = await api.post<StockSummary[]>("/stocks/recent-prices", { items });
+  return res.data;
+}
+
 export async function getStockReport(code: string): Promise<StockReport> {
   const res = await api.get<StockReport>(`/stocks/${code}/report`);
   return res.data;
@@ -41,6 +51,11 @@ export async function getStockReport(code: string): Promise<StockReport> {
 
 export async function getFactorAnalysis(code: string): Promise<FactorAnalysis> {
   const res = await api.get<FactorAnalysis>(`/stocks/${code}/factors`);
+  return res.data;
+}
+
+export async function getStockMetrics(code: string): Promise<StockMetric[]> {
+  const res = await api.get<StockMetric[]>(`/stocks/${code}/metrics`);
   return res.data;
 }
 
@@ -60,6 +75,13 @@ export async function submitPrediction(
   const res = await api.post<PredictionResult>("/predictions", { code, stockName, direction, userId });
   console.log("[submitPrediction] response:", res.data);
   return res.data;
+}
+
+// 팀 검토용 예시 데이터(적중/미적중/확정 대기 몇 건)를 지금 이 브라우저의 계정 앞으로 만들어 넣는다.
+// TODO: 실서비스 전환 시 이 함수와 백엔드의 /predictions/seed-demo 엔드포인트를 함께 제거할 것.
+export async function seedDemoPredictions(): Promise<void> {
+  const userId = await getCurrentUserId();
+  await api.post("/predictions/seed-demo", { userId });
 }
 
 export async function getMyPredictions(): Promise<PredictionResult[]> {
