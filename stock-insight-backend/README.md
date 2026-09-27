@@ -7,8 +7,8 @@
 ```bash
 npm install
 cp .env.example .env   # 필요 시 ANTHROPIC_API_KEY 입력
-npm run dev             # http://localhost:8787
-npm test                 # 6개 API 테스트
+npm run dev             # http://localhost:8787 (PORT 환경변수로 변경 가능)
+npm test                 # API 테스트 (node --test)
 ```
 
 `ANTHROPIC_API_KEY`를 설정하지 않으면 AI 리포트/영향요인 분석은 자동으로 mock 데이터로 대체됩니다 (개발/데모에 문제 없음).
@@ -18,13 +18,27 @@ npm test                 # 6개 API 테스트
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/health` | 헬스체크 |
-| GET | `/api/stocks/search?q=` | 종목 검색 |
+| GET | `/api/stocks/search?q=` | 종목 검색 (이름 중간 일치 포함, ETF 포함) |
+| GET | `/api/stocks/categories` | 검색 화면 카테고리 칩 목록 |
+| GET | `/api/stocks/categories/:id/stocks` | 카테고리별(업종/ETF) 상위 종목 |
+| POST | `/api/stocks/recent-prices` | "최근 검색" 종목들의 현재가 재조회 `{items: [{code, name, market}]}` |
 | GET | `/api/stocks/:code/report` | AI 종목 리포트 |
 | GET | `/api/stocks/:code/factors` | 주가 영향요인 분석 |
-| POST | `/api/predictions` | 방향성 예측 제출 `{code, stockName, direction}` (제출 시점 실시간가를 referencePrice로 저장) |
+| GET | `/api/stocks/:code/metrics` | 투자 지표 (주식: PER/PBR/EPS/BPS 등, ETF: NAV/수익률 등) |
+| POST | `/api/stocks/:code/chat` | 리포트 챗봇 |
+| POST | `/api/predictions` | 방향성 예측 제출 `{code, stockName, direction, userId}` (제출 시점 실시간가를 referencePrice로 저장, 같은 종목 미확정 예측이 있으면 409) |
 | GET | `/api/predictions` | 예측 이력 조회 |
 | POST | `/api/predictions/:id/resolve` | 현재 실시간가와 referencePrice 비교해 적중 여부 판정 (데모/QA용 즉시 호출, 실제로는 익일 종가 배치가 호출해야 함) |
 | POST | `/api/predictions/:id/claim-reward` | 리워드 수령 (적중 시에만) |
+| GET | `/api/rankings?period=week\|month` | 적중 랭킹 |
+
+### 테스트/시연 전용 (실서비스 전환 시 제거할 것)
+
+| Method | Path | 설명 |
+|---|---|---|
+| POST | `/api/predictions/seed-demo` | 지정 userId 앞으로 적중·미적중·대기 예시 예측 몇 건 생성 |
+| POST | `/api/predictions/seed-ranking-demo` | 랭킹 화면 확인용, 이름 있는 예시 사용자 여러 명의 예측 생성 |
+| POST | `/api/predictions/dev-purge-user` | 특정 userId의 예측을 전부 삭제 (테스트 데이터 정리용) |
 
 ## 데이터 소스
 
