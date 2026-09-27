@@ -4,7 +4,7 @@
   "description": "AI 기반 증권 종목 인사이트 및 방향성 예측 참여형 서비스 (NH WebView)",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run"

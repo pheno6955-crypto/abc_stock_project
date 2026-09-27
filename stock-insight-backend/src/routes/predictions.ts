@@ -14,15 +14,20 @@ predictionsRouter.post("/", async (req, res) => {
     userId?: string;
   };
 
+  console.log("[predictions] POST request body:", { code, stockName, direction, userId });
+
   if (!code || !stockName || (direction !== "UP" && direction !== "DOWN") || !userId) {
+    console.error("[predictions] validation error - missing required fields");
     return res.status(400).json({ error: "code, stockName, direction(UP|DOWN), userId are required" });
   }
 
   let referencePrice: number;
   try {
+    console.log(`[predictions] fetching price for code: ${code}`);
     referencePrice = (await getStockPrice(code)).closePrice;
+    console.log(`[predictions] got price for ${code}: ${referencePrice}`);
   } catch (err) {
-    console.warn(`[predictions] price lookup failed for ${code}:`, (err as Error).message);
+    console.error(`[predictions] price lookup failed for ${code}:`, (err as Error).message);
     return res.status(502).json({ error: "현재가 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });
   }
 

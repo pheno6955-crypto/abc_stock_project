@@ -12,6 +12,7 @@ NH은행 앱 내 WebView로 탑재될 서비스 스캐폴드. Architecture Contr
 cd ../stock-insight-backend && npm install && npm run dev   # http://localhost:8787
 
 # 터미널 2
+cp .env.example .env   # 환경변수 설정 (필수)
 npm install
 npm run dev       # http://localhost:5173
 npm run build      # 프로덕션 빌드 (타입체크 포함)

@@ -14,9 +14,14 @@ export function getErrorMessage(
     }
     console.error("[API Error]", {
       status: err.response?.status,
+      statusText: err.response?.statusText,
       message: err.message,
       data: err.response?.data,
+      code: err.code,
+      url: err.config?.url,
     });
+  } else {
+    console.error("[API Error] Non-Axios error:", err instanceof Error ? err.message : String(err));
   }
   return fallback;
 }

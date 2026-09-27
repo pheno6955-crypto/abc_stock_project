@@ -55,7 +55,10 @@ export async function submitPrediction(
   direction: PredictionDirection
 ): Promise<PredictionResult> {
   const userId = await getCurrentUserId();
+  console.log("[submitPrediction] userId:", userId);
+  console.log("[submitPrediction] calling POST /predictions with:", { code, stockName, direction, userId });
   const res = await api.post<PredictionResult>("/predictions", { code, stockName, direction, userId });
+  console.log("[submitPrediction] response:", res.data);
   return res.data;
 }
 
