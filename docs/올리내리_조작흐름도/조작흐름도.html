@@ -1,0 +1,146 @@
+<title>올리내리 조작 흐름도</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+  :root { color-scheme: light; background: #ffffff; }
+  * { box-sizing: border-box; }
+  body {
+    background: #ffffff;
+    color: #1a1a1a;
+    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 32px 16px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 900; margin: 0 0 4px; text-align: center; }
+  .sub { font-size: 13px; color: #6b7280; text-align: center; margin: 0 0 20px; }
+  figure { margin: 0; }
+  svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 11.5px; color: #6b7280; text-align: center; margin-top: 10px; }
+
+  .box-line { fill: #f5f6f8; stroke: #1a1a1a; stroke-width: 1.6; }
+  .box-title { font-size: 16px; font-weight: 700; fill: #1a1a1a; }
+  .box-sub { font-size: 11.5px; fill: #6b7280; }
+  .flow-line { stroke: #00a650; stroke-width: 2.2; fill: none; }
+  .flow-label { font-size: 11.5px; fill: #00a650; font-weight: 700; }
+  .auto-line { stroke: #9aa1ac; stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; }
+  .auto-label { font-size: 11px; fill: #6b7280; font-weight: 700; }
+  .auto-box { fill: #ffffff; stroke: #9aa1ac; stroke-width: 1.6; stroke-dasharray: 5 4; }
+  .decision { fill: #fff7ea; stroke: #1a1a1a; stroke-width: 1.6; }
+  .decision-text { font-size: 13px; fill: #1a1a1a; font-weight: 700; }
+  .no-label { fill: #e23f44; font-size: 11.5px; font-weight: 700; }
+  .yes-label { fill: #6b7280; font-size: 11.5px; font-weight: 700; }
+  .end-box { fill: #ffffff; stroke: #d1d5db; stroke-width: 1.4; stroke-dasharray: 4 4; }
+  .end-text { font-size: 12.5px; fill: #6b7280; font-weight: 700; }
+  .end-sub { font-size: 10.5px; fill: #9aa1ac; }
+  .up { fill: #e23f44; font-weight: 700; }
+  .down { fill: #3366cc; font-weight: 700; }
+  .navband { fill: #eefaf2; stroke: #00a650; stroke-width: 1.4; }
+  .navband-text { font-size: 13.5px; fill: #00a650; font-weight: 700; }
+</style>
+
+<div class="wrap">
+  <h1>NH 올리내리 조작 흐름도</h1>
+  <p class="sub">종목 검색부터 방향 예측, 결과 확인까지 사용자가 실제로 거치는 화면 순서와 분기예요.</p>
+
+  <figure>
+    <svg viewBox="0 0 880 1090" role="img" aria-label="홈에서 시작해 종목 검색, 종목 리포트, 방향 예측 화면을 거치고, 이미 예측한 종목이면 안내만 받고 결과 대기, 아니면 올리 또는 내리를 선택해 제출한다. 제출 후에는 다른 종목을 다시 예측하러 종목 검색으로 돌아가거나, 다음 거래일 종가가 확정되면 자동으로 판정되어 예측 이력에 반영된다. 예측 이력과 랭킹은 하단 탭 메뉴로 어느 화면에서든 바로 이동할 수 있다.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="#00a650" />
+        </marker>
+        <marker id="arrow-auto" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="#9aa1ac" />
+        </marker>
+        <marker id="arrow-dark" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="#1a1a1a" />
+        </marker>
+      </defs>
+
+      <!-- 1. 홈 -->
+      <rect class="box-line" x="290" y="20" width="300" height="56" rx="14"/>
+      <text class="box-title" x="440" y="54" text-anchor="middle">홈</text>
+
+      <line class="flow-line" x1="440" y1="76" x2="440" y2="118" marker-end="url(#arrow)"/>
+      <text class="flow-label" x="454" y="102">종목 살펴보기</text>
+
+      <!-- 2. 종목 검색 -->
+      <rect class="box-line" x="290" y="118" width="300" height="56" rx="14"/>
+      <text class="box-title" x="440" y="152" text-anchor="middle">종목 검색</text>
+
+      <line class="flow-line" x1="440" y1="174" x2="440" y2="216" marker-end="url(#arrow)"/>
+      <text class="flow-label" x="454" y="200">종목 선택</text>
+
+      <!-- 3. 종목 리포트 -->
+      <rect class="box-line" x="270" y="216" width="340" height="66" rx="14"/>
+      <text class="box-title" x="440" y="245" text-anchor="middle">종목 리포트</text>
+      <text class="box-sub" x="440" y="264" text-anchor="middle">영향요인 분석 · AI 리포트 · 챗봇</text>
+
+      <line class="flow-line" x1="440" y1="282" x2="440" y2="324" marker-end="url(#arrow)"/>
+      <text class="flow-label" x="454" y="308">방향 예측 시작</text>
+
+      <!-- 4. 방향 예측 화면 -->
+      <rect class="box-line" x="290" y="324" width="300" height="56" rx="14"/>
+      <text class="box-title" x="440" y="358" text-anchor="middle">방향 예측 화면</text>
+
+      <line class="flow-line" x1="440" y1="380" x2="440" y2="410" marker-end="url(#arrow)"/>
+
+      <!-- 5. 결정: 이미 예측? -->
+      <polygon class="decision" points="440,410 540,468 440,526 340,468"/>
+      <text class="decision-text" x="440" y="462" text-anchor="middle">이미 예측한</text>
+      <text class="decision-text" x="440" y="480" text-anchor="middle">종목인가요?</text>
+
+      <!-- Yes -> 안내 후 종료 (오른쪽) -->
+      <line class="flow-line" x1="540" y1="468" x2="650" y2="468" marker-end="url(#arrow)"/>
+      <text class="yes-label" x="565" y="458">예</text>
+      <rect class="end-box" x="650" y="438" width="200" height="60" rx="12"/>
+      <text class="end-text" x="750" y="462" text-anchor="middle">이미 예측했어요</text>
+      <text class="end-sub" x="750" y="480" text-anchor="middle">결과 확정 후 재참여 가능</text>
+
+      <!-- No -> 아래로 계속 -->
+      <line class="flow-line" x1="440" y1="526" x2="440" y2="566" marker-end="url(#arrow)"/>
+      <text class="no-label" x="454" y="550">아니오</text>
+
+      <!-- 6. 올리/내리 선택 후 제출 -->
+      <rect class="box-line" x="270" y="566" width="340" height="66" rx="14"/>
+      <text class="box-title" x="440" y="595" text-anchor="middle"><tspan class="up">올리 ▲</tspan> / <tspan class="down">내리 ▼</tspan> 선택</text>
+      <text class="box-sub" x="440" y="614" text-anchor="middle">예측 제출</text>
+
+      <line class="flow-line" x1="440" y1="632" x2="440" y2="674" marker-end="url(#arrow)"/>
+      <text class="flow-label" x="454" y="658">제출</text>
+
+      <!-- 7. 제출 완료 -->
+      <rect class="box-line" x="270" y="674" width="340" height="66" rx="14"/>
+      <text class="box-title" x="440" y="703" text-anchor="middle">제출 완료</text>
+      <text class="box-sub" x="440" y="722" text-anchor="middle">제출 시점 기준가 · NH포인트 안내</text>
+
+      <!-- 루프: 다른 종목 예측하기 -->
+      <path class="flow-line" d="M 270 700 C 120 700, 120 146, 290 146" marker-end="url(#arrow)"/>
+      <text class="flow-label" x="128" y="430" text-anchor="middle" transform="rotate(-90 128 430)">다른 종목 예측하기</text>
+
+      <!-- 자동: 익일 종가 확정 -->
+      <line class="auto-line" x1="440" y1="740" x2="440" y2="800" marker-end="url(#arrow-auto)"/>
+      <text class="auto-label" x="454" y="774">다음 거래일 종가 확정 (자동)</text>
+
+      <rect class="auto-box" x="270" y="800" width="340" height="56" rx="14"/>
+      <text class="box-title" x="440" y="834" text-anchor="middle" style="font-size:14px;">자동 판정 (스케줄러)</text>
+
+      <line class="auto-line" x1="440" y1="856" x2="330" y2="896" marker-end="url(#arrow-auto)"/>
+      <text class="auto-label" x="454" y="882">결과 반영</text>
+
+      <!-- 8/9. 예측 이력 / 랭킹 -->
+      <rect class="box-line" x="190" y="898" width="240" height="66" rx="14"/>
+      <text class="box-title" x="310" y="927" text-anchor="middle">예측 이력</text>
+      <text class="box-sub" x="310" y="946" text-anchor="middle">적중 · 미적중 · 리워드 받기</text>
+
+      <rect class="box-line" x="450" y="898" width="240" height="66" rx="14"/>
+      <text class="box-title" x="570" y="927" text-anchor="middle">예측왕 랭킹</text>
+      <text class="box-sub" x="570" y="946" text-anchor="middle">내 순위 · 우대금리 혜택 안내</text>
+
+      <!-- 하단 탭 메뉴 -->
+      <line class="auto-line" x1="310" y1="964" x2="310" y2="1000" />
+      <line class="auto-line" x1="570" y1="964" x2="570" y2="1000" />
+      <rect class="navband" x="140" y="1000" width="600" height="60" rx="16"/>
+      <text class="navband-text" x="440" y="1036" text-anchor="middle">하단 탭 메뉴 — 어느 화면에서든 바로 이동 가능</text>
+    </svg>
+    <figcaption>실선 화살표는 사용자가 직접 누르는 흐름, 점선 화살표는 시간이 지나 자동으로 일어나는 처리예요.</figcaption>
+  </figure>
+</div>

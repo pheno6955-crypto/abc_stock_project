@@ -139,14 +139,14 @@ predictionsRouter.post("/seed-demo", async (req, res) => {
   res.status(201).json({ created: created.length, predictions: created });
 });
 
-// 랭킹 화면 점검용 예시 데이터. 이름 있는 사용자 여러 명이 서로 다른 승패 기록을 가진 상태로
-// 랭킹에 바로 나오도록 만든다 (userId 자체를 이름으로 써서, 프론트가 그대로 화면에 보여줌).
+// 랭킹 화면 점검용 예시 데이터. 실제 사람 이름 대신 guest- 접두사를 써서, 프론트의 랭킹 화면이
+// 실제 게스트와 동일하게 유명 축구선수 이름으로 표시하도록 한다 (userId를 그대로 노출하지 않음).
 // TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용).
 const RANKING_DEMO_USERS: { userId: string; results: boolean[] }[] = [
-  { userId: "하현석", results: [true, true, true, true, false] }, // 5전 4승 1패
-  { userId: "조윤신", results: [true, true, true, false] }, // 4전 3승 1패
-  { userId: "김태영", results: [true, true, false] }, // 3전 2승 1패
-  { userId: "여효주", results: [true, false] }, // 2전 1승 1패
+  { userId: "guest-demoseed01", results: [true, true, true, true, false] }, // 5전 4승 1패
+  { userId: "guest-demoseed02", results: [true, true, true, false] }, // 4전 3승 1패
+  { userId: "guest-demoseed03", results: [true, true, false] }, // 3전 2승 1패
+  { userId: "guest-demoseed04", results: [true, false] }, // 2전 1승 1패
 ];
 
 const RANKING_DEMO_STOCK_POOL: { code: string; stockName: string }[] = [
