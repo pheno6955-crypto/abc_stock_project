@@ -39,7 +39,7 @@ export default function StreakBanner() {
         </p>
         <p className="streak-desc">
           {streak.todayParticipated
-            ? `${streak.milestoneEvery}일마다 보너스 캔디를 드려요`
+            ? `${streak.milestoneEvery}일마다 보너스 포인트를 드려요`
             : "오늘도 예측하면 스트릭이 이어져요"}
         </p>
       </div>

@@ -20,7 +20,7 @@ const FEATURES = [
   {
     icon: Target,
     title: "방향성 예측 + 리워드 + 랭킹",
-    description: "내일 주가 방향을 예측하고, 적중하면 올원캔디를 받아요. 랭킹에서 내 순위도 확인해보세요.",
+    description: "내일 주가 방향을 맞추면 NH포인트를 받아요.\n랭킹 상위권이 되면 우대금리도 받아요.",
   },
 ];
 
@@ -48,7 +48,7 @@ export default function Home({ onStart }: Props) {
             </span>
             <div>
               <h2>{f.title}</h2>
-              <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: 14 }}>
+              <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: 14, whiteSpace: "pre-line" }}>
                 {f.description}
               </p>
             </div>

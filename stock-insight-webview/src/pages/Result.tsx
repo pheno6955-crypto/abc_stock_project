@@ -39,7 +39,7 @@ export default function Result({ result, onDone }: Props) {
         <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
           결과는 다음 거래일 종가 확정 후 나와요.
         </p>
-        <span className="reward-badge">적중 시 올원캔디 지급 예정</span>
+        <span className="reward-badge">적중 시 NH포인트 지급 예정</span>
       </div>
 
       <div className="card cross-sell-card">

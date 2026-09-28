@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Trophy } from "lucide-react";
+import { PiggyBank, Trophy } from "lucide-react";
 import type { RankingResponse } from "../types";
 import { getRankings } from "../api/client";
 import { getErrorMessage } from "../api/errors";
@@ -67,6 +67,14 @@ export default function Rankings() {
       <p style={{ color: "var(--color-text-secondary)", fontSize: 13, marginTop: 0 }}>
         기간 내 적중 횟수가 많은 순으로, 같으면 적중률이 높은 순으로 순위를 매겨요.
       </p>
+
+      <div className="card cross-sell-card ranking-benefit-card" style={{ marginBottom: "var(--space-md)" }}>
+        <PiggyBank size={20} />
+        <div>
+          <p className="cross-sell-title">상위 랭커 혜택</p>
+          <p className="cross-sell-desc">랭킹 상위권을 꾸준히 유지하면 예금·적금·대출 우대금리 혜택을 드려요.</p>
+        </div>
+      </div>
 
       <div className="category-chip-row" style={{ marginBottom: "var(--space-md)" }}>
         <button

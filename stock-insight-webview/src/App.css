@@ -60,20 +60,20 @@ body {
 }
 
 .app-header h1 {
-  font-size: 18px;
+  font-size: 22px;
   margin: 0;
 }
 
 .app-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .header-mascot {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -574,6 +574,14 @@ body {
   flex-shrink: 0;
   color: var(--color-primary);
   margin-top: 2px;
+}
+
+.ranking-benefit-card {
+  padding-block: var(--space-md);
+}
+
+.ranking-benefit-card .cross-sell-desc {
+  margin-bottom: 0;
 }
 
 .cross-sell-title {
@@ -1194,7 +1202,7 @@ body {
   }
 
   .app-header h1 {
-    font-size: 17px;
+    font-size: 20px;
   }
 
   .app-body {

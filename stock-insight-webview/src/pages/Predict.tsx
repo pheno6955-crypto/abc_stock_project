@@ -127,7 +127,7 @@ export default function Predict({ stock, onSubmitted }: Props) {
         </div>
       </div>
       <p className="disclaimer">
-        적중하면 리워드(올원캔디 등)가 지급돼요. 매수·매도를 권유하는 게 아니에요.
+        적중하면 리워드(NH포인트 등)가 지급돼요. 매수·매도를 권유하는 게 아니에요.
       </p>
     </div>
   );

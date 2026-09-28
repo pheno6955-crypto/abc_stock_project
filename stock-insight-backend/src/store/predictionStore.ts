@@ -47,6 +47,21 @@ export function deletePredictionsByUser(userId: string): number {
   return removed;
 }
 
+// 데모 시드 버튼을 여러 번 눌러도 카드가 계속 쌓이지 않도록, 이전에 만든 데모 데이터만 지운다
+// (실제 제출한 예측은 id가 "demo-"로 시작하지 않으므로 건드리지 않음).
+export function deleteDemoPredictions(userId: string): number {
+  const prefix = `demo-${userId}-`;
+  let removed = 0;
+  for (const [id, p] of predictions) {
+    if (id.startsWith(prefix)) {
+      predictions.delete(id);
+      removed += 1;
+    }
+  }
+  if (removed > 0) persist();
+  return removed;
+}
+
 export function listPredictions(): PredictionResult[] {
   return Array.from(predictions.values()).sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()

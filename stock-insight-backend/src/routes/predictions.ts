@@ -6,6 +6,7 @@ import {
   savePrediction,
   updatePrediction,
   deletePredictionsByUser,
+  deleteDemoPredictions,
 } from "../store/predictionStore.js";
 import { getStockPrice } from "../services/naverFinance.js";
 import { nextResolvableTime } from "../utils/tradingCalendar.js";
@@ -81,8 +82,8 @@ predictionsRouter.get("/", (req, res) => {
   res.json(predictions);
 });
 
-// 팀 검토/화면 점검용 예시 데이터. 적중·미적중·확정 대기 상태를 실제로 눈으로 보기 위해
-// 지정한 userId 앞으로 확정된(과거 시점) 예측 몇 건을 바로 만들어 넣는다.
+// 팀 검토/화면 점검용 예시 데이터. 종목·경우(적중/미적중/확정 대기)별로 하나씩,
+// 딱 3건만 만들어서 화면에서 세 가지 상태를 한눈에 구분해 볼 수 있게 한다.
 // TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용, 실제 서비스 로직과 무관).
 const DEMO_PREDICTION_SPECS: {
   code: string;
@@ -91,16 +92,17 @@ const DEMO_PREDICTION_SPECS: {
   actualDirection: PredictionDirection | null; // null이면 아직 확정 대기 상태로 만든다
   rewardClaimed: boolean;
 }[] = [
-  { code: "005930", stockName: "삼성전자", direction: "UP", actualDirection: "UP", rewardClaimed: true },
-  { code: "000660", stockName: "SK하이닉스", direction: "DOWN", actualDirection: "DOWN", rewardClaimed: false },
-  { code: "035420", stockName: "NAVER", direction: "UP", actualDirection: "DOWN", rewardClaimed: false },
-  { code: "035720", stockName: "카카오", direction: "DOWN", actualDirection: "UP", rewardClaimed: false },
-  { code: "005380", stockName: "현대차", direction: "UP", actualDirection: null, rewardClaimed: false },
+  { code: "005930", stockName: "삼성전자", direction: "UP", actualDirection: "UP", rewardClaimed: false }, // 적중 (리워드 받기 버튼 테스트용)
+  { code: "035720", stockName: "카카오", direction: "DOWN", actualDirection: "UP", rewardClaimed: false }, // 미적중
+  { code: "005380", stockName: "현대차", direction: "UP", actualDirection: null, rewardClaimed: false }, // 확정 대기
 ];
 
 predictionsRouter.post("/seed-demo", async (req, res) => {
   const { userId } = req.body as { userId?: string };
   if (!userId) return res.status(400).json({ error: "userId is required" });
+
+  // 버튼을 여러 번 눌러도 카드가 계속 쌓이지 않도록, 이전에 만든 데모 데이터는 지우고 다시 만든다.
+  deleteDemoPredictions(userId);
 
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;

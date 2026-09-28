@@ -127,10 +127,10 @@ export default function App() {
           홈
         </button>
         <button className={tab === "insight" ? "active" : ""} onClick={goToInsight}>
-          종목 인사이트
+          종목 살펴보기
         </button>
         <button className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
-          내 예측 이력
+          예측 이력
         </button>
         <button className={tab === "rankings" ? "active" : ""} onClick={() => setTab("rankings")}>
           랭킹
