@@ -94,18 +94,32 @@ predictionsRouter.get("/", (req, res) => {
 // 확정 대기 카드는 지금 가격으로 제출한 것과 같고, 판정 시각도 실제 규칙(다음 평일 15:40)을 따른다.
 // TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용, 실제 서비스 로직과 무관).
 type DemoOutcome = "hit" | "miss" | "pending";
-const DEMO_PREDICTION_SPECS: { code: string; stockName: string; outcome: DemoOutcome; rewardClaimed: boolean }[] = [
+const DEMO_PREDICTION_SPECS: {
+  code: string;
+  stockName: string;
+  outcome: DemoOutcome;
+  rewardClaimed: boolean;
+  rising?: boolean; // true면 종가가 오른(올리 방향) 거래일 쌍을 골라 상승 카드(빨강 종가)를 만든다
+}[] = [
   { code: "005930", stockName: "삼성전자", outcome: "hit", rewardClaimed: false }, // 적중 (리워드 받기 버튼 테스트용)
   { code: "035720", stockName: "카카오", outcome: "miss", rewardClaimed: false }, // 미적중
+  { code: "373220", stockName: "LG에너지솔루션", outcome: "hit", rewardClaimed: false, rising: true }, // 적중 + 상승(빨강)
   { code: "005380", stockName: "현대차", outcome: "pending", rewardClaimed: false }, // 확정 대기
 ];
 
 const kstIso = (date: string, time: string): string => new Date(`${date}T${time}+09:00`).toISOString();
 
 // 종가가 달라진(방향이 분명한) 가장 최근 거래일 쌍을 찾는다.
-function latestClosePair(closes: DailyClose[]): { from: DailyClose; to: DailyClose } | null {
+// rising이면 종가가 오른 쌍만 찾는다.
+function latestClosePair(
+  closes: DailyClose[],
+  rising = false
+): { from: DailyClose; to: DailyClose } | null {
   for (let k = closes.length - 1; k >= 1; k--) {
-    if (closes[k].closePrice !== closes[k - 1].closePrice) return { from: closes[k - 1], to: closes[k] };
+    const changed = rising
+      ? closes[k].closePrice > closes[k - 1].closePrice
+      : closes[k].closePrice !== closes[k - 1].closePrice;
+    if (changed) return { from: closes[k - 1], to: closes[k] };
   }
   return null;
 }
@@ -128,7 +142,7 @@ predictionsRouter.post("/seed-demo", async (req, res) => {
 
     if (spec.outcome !== "pending") {
       try {
-        const pair = latestClosePair(await getDailyCloses(spec.code));
+        const pair = latestClosePair(await getDailyCloses(spec.code), spec.rising);
         if (pair) {
           const actualDirection: PredictionDirection = pair.to.closePrice >= pair.from.closePrice ? "UP" : "DOWN";
           const direction: PredictionDirection =

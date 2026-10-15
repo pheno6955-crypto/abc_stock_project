@@ -418,6 +418,15 @@ test("POST /api/predictions/seed-demo creates hit/miss/pending example predictio
       assert.equal(p.isCorrect, p.direction === expectedActual);
     }
   }
+  const resolved = (list.body as Card[]).filter((p) => p.resolvedAt !== null);
+  assert.ok(
+    resolved.some((p) => p.actualDirection === "UP"),
+    "종가가 오른(빨강) 확정 예시가 있어야 함"
+  );
+  assert.ok(
+    resolved.some((p) => p.actualDirection === "DOWN"),
+    "종가가 내린(파랑) 확정 예시가 있어야 함"
+  );
 });
 
 test("POST /api/predictions/seed-demo requires a userId", async () => {
