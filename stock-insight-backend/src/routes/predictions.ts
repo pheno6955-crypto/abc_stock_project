@@ -8,7 +8,12 @@ import {
   deletePredictionsByUser,
   deleteDemoPredictions,
 } from "../store/predictionStore.js";
-import { getStockPrice } from "../services/naverFinance.js";
+import {
+  getDailyCloses,
+  getFirstClosedCloseOnOrAfter,
+  getStockPrice,
+  type DailyClose,
+} from "../services/naverFinance.js";
 import { seedRankingDemo } from "../services/rankingDemoSeed.js";
 import { nextResolvableTime } from "../utils/tradingCalendar.js";
 
@@ -83,20 +88,27 @@ predictionsRouter.get("/", (req, res) => {
   res.json(predictions);
 });
 
-// 팀 검토/화면 점검용 예시 데이터. 종목·경우(적중/미적중/확정 대기)별로 하나씩,
-// 딱 3건만 만들어서 화면에서 세 가지 상태를 한눈에 구분해 볼 수 있게 한다.
+// 팀 검토/화면 점검용 예시 데이터. 적중/미적중/확정 대기를 종목별로 하나씩 딱 3건만 만든다.
+// 적중·미적중 카드는 가짜 가격이 아니라 실제 종목의 "최근 거래일 쌍(기준일 종가 → 다음 거래일 종가)"으로 만든다:
+// 날짜·기준가·종가는 모두 실제 값이고, 의도한 결과가 되도록 방향만 골라서 넣는다.
+// 확정 대기 카드는 지금 가격으로 제출한 것과 같고, 판정 시각도 실제 규칙(다음 평일 15:40)을 따른다.
 // TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용, 실제 서비스 로직과 무관).
-const DEMO_PREDICTION_SPECS: {
-  code: string;
-  stockName: string;
-  direction: PredictionDirection;
-  actualDirection: PredictionDirection | null; // null이면 아직 확정 대기 상태로 만든다
-  rewardClaimed: boolean;
-}[] = [
-  { code: "005930", stockName: "삼성전자", direction: "UP", actualDirection: "UP", rewardClaimed: false }, // 적중 (리워드 받기 버튼 테스트용)
-  { code: "035720", stockName: "카카오", direction: "DOWN", actualDirection: "UP", rewardClaimed: false }, // 미적중
-  { code: "005380", stockName: "현대차", direction: "UP", actualDirection: null, rewardClaimed: false }, // 확정 대기
+type DemoOutcome = "hit" | "miss" | "pending";
+const DEMO_PREDICTION_SPECS: { code: string; stockName: string; outcome: DemoOutcome; rewardClaimed: boolean }[] = [
+  { code: "005930", stockName: "삼성전자", outcome: "hit", rewardClaimed: false }, // 적중 (리워드 받기 버튼 테스트용)
+  { code: "035720", stockName: "카카오", outcome: "miss", rewardClaimed: false }, // 미적중
+  { code: "005380", stockName: "현대차", outcome: "pending", rewardClaimed: false }, // 확정 대기
 ];
+
+const kstIso = (date: string, time: string): string => new Date(`${date}T${time}+09:00`).toISOString();
+
+// 종가가 달라진(방향이 분명한) 가장 최근 거래일 쌍을 찾는다.
+function latestClosePair(closes: DailyClose[]): { from: DailyClose; to: DailyClose } | null {
+  for (let k = closes.length - 1; k >= 1; k--) {
+    if (closes[k].closePrice !== closes[k - 1].closePrice) return { from: closes[k - 1], to: closes[k] };
+  }
+  return null;
+}
 
 predictionsRouter.post("/seed-demo", async (req, res) => {
   const { userId } = req.body as { userId?: string };
@@ -105,34 +117,63 @@ predictionsRouter.post("/seed-demo", async (req, res) => {
   // 버튼을 여러 번 눌러도 카드가 계속 쌓이지 않도록, 이전에 만든 데모 데이터는 지우고 다시 만든다.
   deleteDemoPredictions(userId);
 
-  const now = Date.now();
-  const DAY_MS = 24 * 60 * 60 * 1000;
-
+  const now = new Date();
   const created: PredictionResult[] = [];
+
   for (const [i, spec] of DEMO_PREDICTION_SPECS.entries()) {
-    let referencePrice: number;
-    try {
-      referencePrice = (await getStockPrice(spec.code)).closePrice;
-    } catch {
-      referencePrice = 50000; // 조회 실패 시에도 시연은 가능하도록 대체값 사용
+    const id = `demo-${userId}-${spec.code}-${now.getTime()}-${i}`;
+    const base = { id, userId, code: spec.code, stockName: spec.stockName, rewardClaimed: spec.rewardClaimed };
+
+    let prediction: PredictionResult | null = null;
+
+    if (spec.outcome !== "pending") {
+      try {
+        const pair = latestClosePair(await getDailyCloses(spec.code));
+        if (pair) {
+          const actualDirection: PredictionDirection = pair.to.closePrice >= pair.from.closePrice ? "UP" : "DOWN";
+          const direction: PredictionDirection =
+            spec.outcome === "hit" ? actualDirection : actualDirection === "UP" ? "DOWN" : "UP";
+          prediction = {
+            ...base,
+            direction,
+            referencePrice: pair.from.closePrice,
+            actualDirection,
+            isCorrect: spec.outcome === "hit",
+            submittedAt: kstIso(pair.from.date, "16:00:00"),
+            resolvableAt: kstIso(pair.to.date, "15:40:00"),
+            resolvedAt: kstIso(pair.to.date, "15:41:00"),
+            resolvedPrice: pair.to.closePrice,
+          };
+        }
+      } catch (err) {
+        console.warn(`[seed-demo] 일별 종가 조회 실패 (${spec.code}):`, (err as Error).message);
+      }
     }
-    const resolved = spec.actualDirection !== null;
-    const prediction: PredictionResult = {
-      id: `demo-${userId}-${spec.code}-${now}-${i}`,
-      userId,
-      code: spec.code,
-      stockName: spec.stockName,
-      direction: spec.direction,
-      referencePrice,
-      actualDirection: spec.actualDirection,
-      isCorrect: resolved ? spec.actualDirection === spec.direction : null,
-      rewardClaimed: spec.rewardClaimed,
-      submittedAt: new Date(now - (i + 2) * DAY_MS).toISOString(),
-      resolvableAt: resolved
-        ? new Date(now - (i + 1) * DAY_MS).toISOString()
-        : new Date(now + 3 * 60 * 60 * 1000).toISOString(),
-      resolvedAt: resolved ? new Date(now - i * DAY_MS).toISOString() : null,
-    };
+
+    if (!prediction && spec.outcome !== "pending") {
+      return res.status(502).json({ error: "실제 종가를 가져오지 못했어요. 잠시 후 다시 시도해주세요." });
+    }
+
+    if (!prediction) {
+      let referencePrice: number;
+      try {
+        referencePrice = (await getStockPrice(spec.code)).closePrice;
+      } catch {
+        referencePrice = 50000; // 조회 실패 시에도 시연은 가능하도록 대체값 사용
+      }
+      prediction = {
+        ...base,
+        direction: "UP",
+        referencePrice,
+        actualDirection: null,
+        isCorrect: null,
+        submittedAt: now.toISOString(),
+        resolvableAt: nextResolvableTime(now).toISOString(),
+        resolvedAt: null,
+        resolvedPrice: null,
+      };
+    }
+
     savePrediction(prediction);
     created.push(prediction);
   }
@@ -167,14 +208,21 @@ predictionsRouter.post("/dev-purge-user", (req, res) => {
 });
 
 // 다음 거래일 종가 확정 후에만 판정 가능. resolvableAt 이전 호출은 명시적으로 거절한다.
+// 판정은 서버가 언제 깨어나 실행하든 "판정 기준일(resolvableAt의 KST 날짜) 이후 처음 마감된 거래일의 종가"로 한다.
 async function resolveOne(prediction: PredictionResult): Promise<PredictionResult> {
-  const currentPrice = (await getStockPrice(prediction.code)).closePrice;
-  const actualDirection: PredictionDirection = currentPrice >= prediction.referencePrice ? "UP" : "DOWN";
+  const resolvableDateKst = new Date(new Date(prediction.resolvableAt).getTime() + 9 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const close = await getFirstClosedCloseOnOrAfter(prediction.code, resolvableDateKst);
+  if (!close) throw new Error("판정 기준일의 종가가 아직 확정되지 않았어요");
+
+  const actualDirection: PredictionDirection = close.closePrice >= prediction.referencePrice ? "UP" : "DOWN";
   const isCorrect = actualDirection === prediction.direction;
   return updatePrediction(prediction.id, {
     actualDirection,
     isCorrect,
     resolvedAt: new Date().toISOString(),
+    resolvedPrice: close.closePrice,
   })!;
 }
 
@@ -218,7 +266,7 @@ predictionsRouter.post("/:id/resolve", async (req, res) => {
     res.json(await resolveOne(prediction));
   } catch (err) {
     console.warn(`[predictions] resolve price lookup failed for ${prediction.code}:`, (err as Error).message);
-    res.status(502).json({ error: "현재가 조회에 실패했습니다. 잠시 후 다시 시도해주세요." });
+    res.status(502).json({ error: "종가를 가져오지 못했어요. 잠시 후 다시 시도해주세요." });
   }
 });
 

@@ -60,6 +60,8 @@ export interface PredictionResult {
   submittedAt: string;
   resolvableAt: string;
   resolvedAt: string | null;
+  // 판정에 사용한 종가(확정가). 이 필드가 생기기 전에 판정된 기록에는 없다.
+  resolvedPrice?: number | null;
 }
 
 export interface RankingEntry {

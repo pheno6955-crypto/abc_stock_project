@@ -67,6 +67,45 @@ export async function getStockPrice(code: string): Promise<StockPrice> {
   };
 }
 
+export interface DailyClose {
+  date: string; // KST 거래일 (YYYY-MM-DD)
+  closePrice: number;
+}
+
+const MARKET_CLOSE_CONFIRMED_MINUTES_KST = 15 * 60 + 40;
+
+// 최근 60거래일(네이버가 한 번에 주는 최대치) 중 "마감이 확정된" 거래일의 종가를 오래된 순으로 돌려준다.
+// 오늘 거래일은 15:40 이후에만 포함한다(장중 가격이 종가로 섞이지 않게 하기 위함).
+export async function getDailyCloses(code: string, now: Date = new Date()): Promise<DailyClose[]> {
+  const res = await fetch(`https://m.stock.naver.com/api/stock/${code}/price?pageSize=60&page=1`, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Naver daily price API returned ${res.status}`);
+  const rows = (await res.json()) as { localTradedAt: string; closePrice: string }[];
+  if (!Array.isArray(rows)) throw new Error("Naver daily price API returned unexpected shape");
+
+  const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const todayKst = kstNow.toISOString().slice(0, 10);
+  const minutesKst = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
+  const closedToday = minutesKst >= MARKET_CLOSE_CONFIRMED_MINUTES_KST;
+
+  return rows
+    .filter((r) => r.localTradedAt < todayKst || (r.localTradedAt === todayKst && closedToday))
+    .map((r) => ({ date: r.localTradedAt, closePrice: parsePrice(r.closePrice) }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+// 기준일(KST) 이후 처음으로 마감이 확정된 거래일의 종가. 서버가 언제 깨어나 판정하든 실시간 가격이 아니라
+// 그 거래일의 종가가 쓰이도록 한다. 휴장일이면 다음 거래일 종가, 아직 장 마감 전이면 null.
+export async function getFirstClosedCloseOnOrAfter(
+  code: string,
+  dateKst: string,
+  now: Date = new Date()
+): Promise<DailyClose | null> {
+  const closes = await getDailyCloses(code, now);
+  return closes.find((c) => c.date >= dateKst) ?? null;
+}
+
 export async function getStockNews(code: string, limit = 5): Promise<NewsItem[]> {
   const res = await fetch(`https://m.stock.naver.com/api/news/stock/${code}?pageSize=${limit}&page=1`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

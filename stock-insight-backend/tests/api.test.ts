@@ -307,7 +307,7 @@ test("예측이 확정(판정)된 뒤에는 같은 종목에 다시 예측할 �
 
   const first = await request(app).post("/api/predictions").send(body);
   assert.equal(first.status, 201);
-  updatePrediction(first.body.id, { resolvableAt: new Date(Date.now() - 1000).toISOString() });
+  updatePrediction(first.body.id, { resolvableAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() });
   const resolved = await request(app).post(`/api/predictions/${first.body.id}/resolve`);
   assert.equal(resolved.status, 200);
 
@@ -323,7 +323,7 @@ test("prediction resolve -> claim-reward flow once resolvableAt has passed (real
   assert.equal(submitRes.status, 201);
 
   // resolvableAt을 과거로 앞당겨, 다음 거래일 종가 확정 이후 상황을 시뮬레이션한다.
-  updatePrediction(submitRes.body.id, { resolvableAt: new Date(Date.now() - 1000).toISOString() });
+  updatePrediction(submitRes.body.id, { resolvableAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() });
 
   // 실데이터 기반이라 결과 방향은 UP/DOWN 둘 다 나올 수 있어 두 경우 모두 검증한다.
   const resolveRes = await request(app).post(`/api/predictions/${submitRes.body.id}/resolve`);
@@ -363,7 +363,7 @@ test("POST /api/predictions/resolve-pending only resolves predictions past resol
     .post("/api/predictions")
     .send({ code: "005380", stockName: "현대차", direction: "DOWN", userId: "test-user" });
   assert.equal(dueRes.status, 201);
-  updatePrediction(dueRes.body.id, { resolvableAt: new Date(Date.now() - 1000).toISOString() });
+  updatePrediction(dueRes.body.id, { resolvableAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() });
 
   const batchRes = await request(app).post("/api/predictions/resolve-pending");
   assert.equal(batchRes.status, 200);
@@ -393,6 +393,30 @@ test("POST /api/predictions/seed-demo creates hit/miss/pending example predictio
   for (const p of list.body as { referencePrice: number; userId: string }[]) {
     assert.equal(p.userId, userId);
     assert.equal(typeof p.referencePrice, "number");
+  }
+
+  type Card = {
+    direction: "UP" | "DOWN";
+    referencePrice: number;
+    resolvedPrice: number | null;
+    actualDirection: "UP" | "DOWN" | null;
+    isCorrect: boolean | null;
+    resolvableAt: string;
+    resolvedAt: string | null;
+  };
+  for (const p of list.body as Card[]) {
+    // 판정 시각은 항상 한국시간 15:40 (= 06:40Z) 이어야 한다 (실제 규칙과 동일).
+    assert.equal(new Date(p.resolvableAt).toISOString().slice(11, 16), "06:40");
+    if (p.resolvedAt === null) {
+      assert.ok(new Date(p.resolvableAt).getTime() > Date.now(), "대기 카드의 판정 시각은 미래여야 함");
+      assert.equal(p.resolvedPrice, null);
+    } else {
+      // 확정 카드: 실제 종가 쌍 기준으로 방향/적중 여부가 서로 맞아야 한다.
+      assert.equal(typeof p.resolvedPrice, "number");
+      const expectedActual = p.resolvedPrice! >= p.referencePrice ? "UP" : "DOWN";
+      assert.equal(p.actualDirection, expectedActual);
+      assert.equal(p.isCorrect, p.direction === expectedActual);
+    }
   }
 });
 

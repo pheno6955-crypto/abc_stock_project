@@ -44,13 +44,14 @@ export async function seedRankingDemo(
       poolIndex += 1;
       const direction: PredictionDirection = i % 2 === 0 ? "UP" : "DOWN";
       const actualDirection: PredictionDirection = hit ? direction : direction === "UP" ? "DOWN" : "UP";
+      const referencePrice = await priceFor(stock.code);
       const prediction: PredictionResult = {
         id: `${RANKING_DEMO_ID_PREFIX}${user.userId}-${stock.code}-${i}`,
         userId: user.userId,
         code: stock.code,
         stockName: stock.stockName,
         direction,
-        referencePrice: await priceFor(stock.code),
+        referencePrice,
         actualDirection,
         isCorrect: hit,
         rewardClaimed: hit,

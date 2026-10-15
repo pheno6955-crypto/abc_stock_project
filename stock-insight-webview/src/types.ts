@@ -84,4 +84,5 @@ export interface PredictionResult {
   submittedAt: string;
   resolvableAt: string;
   resolvedAt: string | null;
+  resolvedPrice?: number | null;
 }

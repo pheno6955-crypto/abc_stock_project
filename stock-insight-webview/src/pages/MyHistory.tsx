@@ -98,6 +98,9 @@ export default function MyHistory() {
               {p.direction === "UP" ? "올리 ▲" : "내리 ▼"}
             </span>
             <span className="price-chip">기준가 {p.referencePrice.toLocaleString()}원</span>
+            {p.resolvedAt !== null && p.resolvedPrice != null && (
+              <span className="price-chip">종가 {p.resolvedPrice.toLocaleString()}원</span>
+            )}
           </p>
           {p.resolvedAt === null && (
             <p className="pending-notice">
