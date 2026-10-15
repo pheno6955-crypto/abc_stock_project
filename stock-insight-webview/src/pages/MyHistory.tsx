@@ -13,6 +13,12 @@ function formatResolvableAt(iso: string): string {
   ).padStart(2, "0")}`;
 }
 
+// 예측한 날짜(한국시간 기준) "10/14" 형식
+function formatSubmittedDate(iso: string): string {
+  const kst = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}`;
+}
+
 export default function MyHistory() {
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -90,7 +96,10 @@ export default function MyHistory() {
         return (
         <div key={p.id} className={`card history-card ${dir}`}>
           <div className="history-head">
-            <h2>{displayStockName(p.stockName, p.code)}</h2>
+            <h2>
+              {displayStockName(p.stockName, p.code)}
+              <span className="history-date">{formatSubmittedDate(p.submittedAt)} 예측</span>
+            </h2>
             <span className={`status-chip ${status}`}>{statusLabel}</span>
           </div>
           <p className="history-meta">

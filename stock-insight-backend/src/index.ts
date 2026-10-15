@@ -7,6 +7,7 @@ import { dbEnabled, initDb } from "./store/db.js";
 import { hydratePredictions } from "./store/predictionStore.js";
 import { hydrateStreakBonuses } from "./store/streakBonusStore.js";
 import { seedRankingDemo } from "./services/rankingDemoSeed.js";
+import { normalizePendingReferencePrices } from "./services/referencePriceNormalizer.js";
 
 function getLanAddresses(): string[] {
   return Object.values(os.networkInterfaces())
@@ -22,6 +23,13 @@ async function main() {
     await hydrateStreakBonuses();
   } else {
     console.log("[db] DATABASE_URL 없음 - JSON 파일 저장소 사용 (재시작 시 데이터가 사라질 수 있음)");
+  }
+
+  try {
+    const fixed = await normalizePendingReferencePrices();
+    if (fixed > 0) console.log(`[normalize] 확정 대기 예측 ${fixed}건의 기준가를 정규장 종가로 보정`);
+  } catch (err) {
+    console.warn("[normalize] 기준가 보정 건너뜀:", (err as Error).message);
   }
 
   // 시연용: 랭킹 샘플을 부팅 시 현재 시각 기준으로 다시 채운다 (SEED_RANKING_DEMO_ON_BOOT=true 일 때만).

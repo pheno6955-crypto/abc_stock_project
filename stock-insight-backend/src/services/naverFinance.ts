@@ -72,38 +72,102 @@ export interface DailyClose {
   closePrice: number;
 }
 
-const MARKET_CLOSE_CONFIRMED_MINUTES_KST = 15 * 60 + 40;
+// KRX 정규장은 평일 09:00~15:30. 15:30 종가는 동시호가로 확정되어 이후 시간외·넥스트레이드 거래로 바뀌지 않는다.
+const MARKET_CLOSE_MINUTES_KST = 15 * 60 + 30;
+const MARKET_OPEN_MINUTES_KST = 9 * 60;
+const CLOSE_CONFIRMED_MINUTES_KST = MARKET_CLOSE_MINUTES_KST + 1; // 15:30 동시호가 체결 분봉이 생기는 시점
+const RECENT_CALENDAR_DAYS = 10;
 
-// 최근 60거래일(네이버가 한 번에 주는 최대치) 중 "마감이 확정된" 거래일의 종가를 오래된 순으로 돌려준다.
-// 오늘 거래일은 15:40 이후에만 포함한다(장중 가격이 종가로 섞이지 않게 하기 위함).
+function compactDate(dateKst: string): string {
+  return dateKst.replaceAll("-", "");
+}
+
+function kstParts(now: Date): { todayKst: string; minutes: number; weekday: number } {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return {
+    todayKst: kst.toISOString().slice(0, 10),
+    minutes: kst.getUTCHours() * 60 + kst.getUTCMinutes(),
+    weekday: kst.getUTCDay(),
+  };
+}
+
+function addDays(dateKst: string, days: number): string {
+  return new Date(Date.parse(`${dateKst}T00:00:00Z`) + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function isWeekday(dateKst: string): boolean {
+  const day = new Date(`${dateKst}T00:00:00Z`).getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+// 해당 거래일 정규장(15:30) 종가. 분봉 중 15:30~15:39 사이 마지막 봉(= 종가 동시호가 체결가)을 쓴다.
+// 일봉·통합 시세는 시간외 단일가(~18:00)나 넥스트레이드(~20:00) 체결이 섞여 장 마감 후에도 값이 변하므로 쓰지 않는다.
+// 휴장일이거나 아직 15:30 봉이 없으면 null. (네이버 분봉은 최근 약 1~2주만 제공)
+async function fetchRegularClose(code: string, dateKst: string): Promise<number | null> {
+  const d = compactDate(dateKst);
+  const url =
+    `https://api.stock.naver.com/chart/domestic/item/${code}/minute` + `?startDateTime=${d}1500&endDateTime=${d}1539`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Naver minute chart API returned ${res.status}`);
+  const bars = (await res.json()) as { localDateTime: string; currentPrice: number }[];
+  if (!Array.isArray(bars)) throw new Error("Naver minute chart API returned unexpected shape");
+  const last = bars[bars.length - 1];
+  if (!last || last.localDateTime.slice(8, 12) < "1530") return null;
+  return last.currentPrice;
+}
+
+// 최근 거래일들의 정규장 종가를 오래된 순으로 돌려준다. 오늘은 15:30 마감이 확정된 뒤에만 포함한다.
 export async function getDailyCloses(code: string, now: Date = new Date()): Promise<DailyClose[]> {
-  const res = await fetch(`https://m.stock.naver.com/api/stock/${code}/price?pageSize=60&page=1`, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Naver daily price API returned ${res.status}`);
-  const rows = (await res.json()) as { localTradedAt: string; closePrice: string }[];
-  if (!Array.isArray(rows)) throw new Error("Naver daily price API returned unexpected shape");
-
-  const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const todayKst = kstNow.toISOString().slice(0, 10);
-  const minutesKst = kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes();
-  const closedToday = minutesKst >= MARKET_CLOSE_CONFIRMED_MINUTES_KST;
-
-  return rows
-    .filter((r) => r.localTradedAt < todayKst || (r.localTradedAt === todayKst && closedToday))
-    .map((r) => ({ date: r.localTradedAt, closePrice: parsePrice(r.closePrice) }))
+  const { todayKst, minutes } = kstParts(now);
+  const dates: string[] = [];
+  for (let i = 0; i < RECENT_CALENDAR_DAYS; i++) {
+    const date = addDays(todayKst, -i);
+    if (!isWeekday(date)) continue;
+    if (date === todayKst && minutes < CLOSE_CONFIRMED_MINUTES_KST) continue;
+    dates.push(date);
+  }
+  const closes = await Promise.all(
+    dates.map(async (date) => ({ date, closePrice: await fetchRegularClose(code, date) }))
+  );
+  return closes
+    .filter((c): c is DailyClose => c.closePrice !== null)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
-// 기준일(KST) 이후 처음으로 마감이 확정된 거래일의 종가. 서버가 언제 깨어나 판정하든 실시간 가격이 아니라
-// 그 거래일의 종가가 쓰이도록 한다. 휴장일이면 다음 거래일 종가, 아직 장 마감 전이면 null.
+// 기준일(KST) 이후 처음으로 마감이 확정된 거래일의 정규장 종가. 서버가 언제 깨어나 판정하든 그 거래일의 종가가 쓰인다.
+// 휴장일이면 다음 거래일 종가, 아직 장 마감 전이면 null.
 export async function getFirstClosedCloseOnOrAfter(
   code: string,
   dateKst: string,
   now: Date = new Date()
 ): Promise<DailyClose | null> {
-  const closes = await getDailyCloses(code, now);
-  return closes.find((c) => c.date >= dateKst) ?? null;
+  const { todayKst, minutes } = kstParts(now);
+  for (let i = 0; i < RECENT_CALENDAR_DAYS; i++) {
+    const date = addDays(dateKst, i);
+    if (date > todayKst) return null;
+    if (!isWeekday(date)) continue;
+    if (date === todayKst && minutes < CLOSE_CONFIRMED_MINUTES_KST) return null;
+    const closePrice = await fetchRegularClose(code, date);
+    if (closePrice !== null) return { date, closePrice };
+  }
+  return null;
+}
+
+// 예측의 기준가. 정규장 중에는 실시간 가격, 장이 닫혀 있을 때(평일 장 시작 전·마감 후, 주말)는
+// 직전 정규장 종가를 쓴다 — 나중에 비교할 "다음 거래일 정규장 종가"와 같은 기준으로 맞추기 위함이다.
+export async function getReferencePrice(code: string, now: Date = new Date()): Promise<number> {
+  const { minutes, weekday } = kstParts(now);
+  const duringSession =
+    weekday >= 1 && weekday <= 5 && minutes >= MARKET_OPEN_MINUTES_KST && minutes < MARKET_CLOSE_MINUTES_KST;
+  if (!duringSession) {
+    try {
+      const closes = await getDailyCloses(code, now);
+      if (closes.length > 0) return closes[closes.length - 1].closePrice;
+    } catch {
+      // 분봉을 못 가져오면 아래 현재가 조회로 대체
+    }
+  }
+  return (await getStockPrice(code)).closePrice;
 }
 
 export async function getStockNews(code: string, limit = 5): Promise<NewsItem[]> {

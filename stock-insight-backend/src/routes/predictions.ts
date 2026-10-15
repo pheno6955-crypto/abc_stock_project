@@ -11,7 +11,7 @@ import {
 import {
   getDailyCloses,
   getFirstClosedCloseOnOrAfter,
-  getStockPrice,
+  getReferencePrice,
   type DailyClose,
 } from "../services/naverFinance.js";
 import { seedRankingDemo } from "../services/rankingDemoSeed.js";
@@ -49,7 +49,7 @@ predictionsRouter.post("/", async (req, res) => {
   let referencePrice: number;
   try {
     console.log(`[predictions] fetching price for code: ${code}`);
-    referencePrice = (await getStockPrice(code)).closePrice;
+    referencePrice = await getReferencePrice(code);
     console.log(`[predictions] got price for ${code}: ${referencePrice}`);
   } catch (err) {
     console.error(`[predictions] price lookup failed for ${code}:`, (err as Error).message);
@@ -157,7 +157,7 @@ predictionsRouter.post("/seed-demo", async (req, res) => {
     if (!prediction) {
       let referencePrice: number;
       try {
-        referencePrice = (await getStockPrice(spec.code)).closePrice;
+        referencePrice = await getReferencePrice(spec.code);
       } catch {
         referencePrice = 50000; // 조회 실패 시에도 시연은 가능하도록 대체값 사용
       }
@@ -188,7 +188,7 @@ predictionsRouter.post("/seed-ranking-demo", async (_req, res) => {
   const priceFor = async (code: string): Promise<number> => {
     if (!priceCache.has(code)) {
       try {
-        priceCache.set(code, (await getStockPrice(code)).closePrice);
+        priceCache.set(code, await getReferencePrice(code));
       } catch {
         priceCache.set(code, 50000); // 조회 실패해도 시연은 가능하도록 대체값 사용
       }

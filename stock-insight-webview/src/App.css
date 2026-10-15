@@ -1124,6 +1124,14 @@ body {
   margin: 0;
 }
 
+.history-date {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 .status-chip,
 .direction-chip {
   display: inline-block;
