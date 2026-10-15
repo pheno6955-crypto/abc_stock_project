@@ -401,29 +401,29 @@ test("POST /api/predictions/seed-demo requires a userId", async () => {
   assert.equal(res.status, 400);
 });
 
-test("POST /api/predictions/seed-ranking-demo seeds named users in hits-descending order for the ranking", async () => {
+test("POST /api/predictions/seed-ranking-demo seeds guest-prefixed demo users in hits-descending order for the ranking", async () => {
   const res = await request(app).post("/api/predictions/seed-ranking-demo").send({});
   assert.equal(res.status, 201);
   assert.ok(res.body.created > 0);
-  assert.deepEqual(res.body.users, ["하현석", "조윤신", "김태영", "여효주"]);
+  assert.deepEqual(res.body.users, ["guest-demoseed01", "guest-demoseed02", "guest-demoseed03", "guest-demoseed04"]);
 
   const ranking = await request(app).get("/api/rankings").query({ period: "week" });
   assert.equal(ranking.status, 200);
   const byName = new Map<string, { userId: string; hits: number; attempts: number }>(
     ranking.body.entries.map((e: { userId: string; hits: number; attempts: number }) => [e.userId, e])
   );
-  assert.equal(byName.get("하현석")!.hits, 4);
-  assert.equal(byName.get("하현석")!.attempts, 5);
-  assert.equal(byName.get("조윤신")!.hits, 3);
-  assert.equal(byName.get("김태영")!.hits, 2);
-  assert.equal(byName.get("여효주")!.hits, 1);
+  assert.equal(byName.get("guest-demoseed01")!.hits, 4);
+  assert.equal(byName.get("guest-demoseed01")!.attempts, 5);
+  assert.equal(byName.get("guest-demoseed02")!.hits, 3);
+  assert.equal(byName.get("guest-demoseed03")!.hits, 2);
+  assert.equal(byName.get("guest-demoseed04")!.hits, 1);
 
   // 적중 횟수 내림차순으로 랭킹에 나와야 함
   const order = ranking.body.entries.map((e: { userId: string }) => e.userId);
   const idx = (name: string) => order.indexOf(name);
-  assert.ok(idx("하현석") < idx("조윤신"));
-  assert.ok(idx("조윤신") < idx("김태영"));
-  assert.ok(idx("김태영") < idx("여효주"));
+  assert.ok(idx("guest-demoseed01") < idx("guest-demoseed02"));
+  assert.ok(idx("guest-demoseed02") < idx("guest-demoseed03"));
+  assert.ok(idx("guest-demoseed03") < idx("guest-demoseed04"));
 });
 
 test("computeStreak counts consecutive KST days and stops at a gap", async () => {

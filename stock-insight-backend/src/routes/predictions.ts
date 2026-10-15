@@ -9,6 +9,7 @@ import {
   deleteDemoPredictions,
 } from "../store/predictionStore.js";
 import { getStockPrice } from "../services/naverFinance.js";
+import { seedRankingDemo } from "../services/rankingDemoSeed.js";
 import { nextResolvableTime } from "../utils/tradingCalendar.js";
 
 export const predictionsRouter = Router();
@@ -139,35 +140,11 @@ predictionsRouter.post("/seed-demo", async (req, res) => {
   res.status(201).json({ created: created.length, predictions: created });
 });
 
-// 랭킹 화면 점검용 예시 데이터. 실제 사람 이름 대신 guest- 접두사를 써서, 프론트의 랭킹 화면이
-// 실제 게스트와 동일하게 유명 축구선수 이름으로 표시하도록 한다 (userId를 그대로 노출하지 않음).
+// 랭킹 화면 점검용 샘플 데이터 (실제 로직은 services/rankingDemoSeed.ts, 서버 시작 때도 같은 함수로 채워짐).
 // TODO: 실서비스 전환 시 이 엔드포인트는 제거할 것 (테스트/시연 전용).
-const RANKING_DEMO_USERS: { userId: string; results: boolean[] }[] = [
-  { userId: "guest-demoseed01", results: [true, true, true, true, false] }, // 5전 4승 1패
-  { userId: "guest-demoseed02", results: [true, true, true, false] }, // 4전 3승 1패
-  { userId: "guest-demoseed03", results: [true, true, false] }, // 3전 2승 1패
-  { userId: "guest-demoseed04", results: [true, false] }, // 2전 1승 1패
-];
-
-const RANKING_DEMO_STOCK_POOL: { code: string; stockName: string }[] = [
-  { code: "005930", stockName: "삼성전자" },
-  { code: "000660", stockName: "SK하이닉스" },
-  { code: "035420", stockName: "NAVER" },
-  { code: "035720", stockName: "카카오" },
-  { code: "005380", stockName: "현대차" },
-  { code: "000270", stockName: "기아" },
-  { code: "373220", stockName: "LG에너지솔루션" },
-  { code: "207940", stockName: "삼성바이오로직스" },
-  { code: "068270", stockName: "셀트리온" },
-  { code: "105560", stockName: "KB금융" },
-];
-
 predictionsRouter.post("/seed-ranking-demo", async (_req, res) => {
-  const now = Date.now();
-  const HOUR_MS = 60 * 60 * 1000;
   const priceCache = new Map<string, number>();
-
-  async function priceFor(code: string): Promise<number> {
+  const priceFor = async (code: string): Promise<number> => {
     if (!priceCache.has(code)) {
       try {
         priceCache.set(code, (await getStockPrice(code)).closePrice);
@@ -176,40 +153,8 @@ predictionsRouter.post("/seed-ranking-demo", async (_req, res) => {
       }
     }
     return priceCache.get(code)!;
-  }
-
-  let poolIndex = 0;
-  const created: PredictionResult[] = [];
-  for (const user of RANKING_DEMO_USERS) {
-    for (const [i, hit] of user.results.entries()) {
-      const stock = RANKING_DEMO_STOCK_POOL[poolIndex % RANKING_DEMO_STOCK_POOL.length];
-      poolIndex += 1;
-      const direction: PredictionDirection = i % 2 === 0 ? "UP" : "DOWN";
-      const actualDirection: PredictionDirection = hit
-        ? direction
-        : direction === "UP"
-          ? "DOWN"
-          : "UP";
-      const prediction: PredictionResult = {
-        id: `rank-demo-${user.userId}-${stock.code}-${i}-${now}`,
-        userId: user.userId,
-        code: stock.code,
-        stockName: stock.stockName,
-        direction,
-        referencePrice: await priceFor(stock.code),
-        actualDirection,
-        isCorrect: hit,
-        rewardClaimed: hit,
-        submittedAt: new Date(now - (i + 2) * HOUR_MS).toISOString(),
-        resolvableAt: new Date(now - (i + 1) * HOUR_MS).toISOString(),
-        resolvedAt: new Date(now - i * HOUR_MS).toISOString(),
-      };
-      savePrediction(prediction);
-      created.push(prediction);
-    }
-  }
-
-  res.status(201).json({ created: created.length, users: RANKING_DEMO_USERS.map((u) => u.userId) });
+  };
+  res.status(201).json(await seedRankingDemo(priceFor));
 });
 
 // 테스트 중 만들어진 특정 userId의 예측을 지운다 (실제 회원 식별자를 함부로 지우지 않도록,
