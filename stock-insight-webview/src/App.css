@@ -1197,6 +1197,17 @@ body {
   color: var(--color-text-primary);
 }
 
+/* 종가 칩: 기준가보다 올랐으면 올리(빨강), 내렸으면 내리(파랑)와 같은 색 */
+.price-chip.up {
+  background: rgba(226, 63, 68, 0.1);
+  color: var(--color-up);
+}
+
+.price-chip.down {
+  background: rgba(51, 102, 204, 0.1);
+  color: var(--color-down);
+}
+
 /* 팀 검토용 임시 버튼 (실서비스 전환 시 제거) */
 .dev-seed-button {
   width: 100%;

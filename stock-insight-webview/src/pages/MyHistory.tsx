@@ -108,7 +108,7 @@ export default function MyHistory() {
             </span>
             <span className="price-chip">기준가 {p.referencePrice.toLocaleString()}원</span>
             {p.resolvedAt !== null && p.resolvedPrice != null && (
-              <span className="price-chip">종가 {p.resolvedPrice.toLocaleString()}원</span>
+              <span className={`price-chip ${p.actualDirection === "UP" ? "up" : "down"}`}>종가 {p.resolvedPrice.toLocaleString()}원</span>
             )}
           </p>
           {p.resolvedAt === null && (
