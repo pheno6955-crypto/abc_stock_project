@@ -676,7 +676,7 @@ function enterFs() {
   } catch (e) {}
 }
 function toggleFs() { if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); fsDone(); } else if (fsSupported) enterFs(); }
-if (fsAsked && fsHint) fsHint.style.display = "none";
+if (fsAsked && fsHint) fsHint.style.display = "none"; else if (fsHint) setTimeout(() => { if (!fsAsked) fsHint.style.display = "none"; }, 4000);  // 기본 안내는 4초 뒤 자동으로 사라짐
 // 전체화면이 안 되는 환경(아이폰 사파리, 카카오톡 인앱 브라우저)에서는 안내만 잠깐 보여준다.
 (function () {
   if (capture || !fsHint) return;
@@ -687,7 +687,7 @@ if (fsAsked && fsHint) fsHint.style.display = "none";
   if (!msg) return;
   fsHint.textContent = msg; fsHint.style.display = "";
   const hide = () => { fsHint.style.display = "none"; };
-  setTimeout(hide, 7000); addEventListener("pointerdown", hide, { once: true });
+  setTimeout(hide, 5000); addEventListener("pointerdown", hide, { once: true });
 })();
 const touchUI = matchMedia("(pointer: coarse)").matches;  // 모바일: 일시정지 중에만 재생바 표시, 재생하면 숨김
 function showCtrl() { if (touchUI) return; if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
