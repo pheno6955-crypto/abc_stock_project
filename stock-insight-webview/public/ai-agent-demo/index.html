@@ -4,6 +4,10 @@
 <meta name="robots" content="noindex,nofollow">
 <meta charset="utf-8">
 <title>AI Agent 시연 영상 - 적용 사례 NH 올리내리</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="올리내리 시연">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
@@ -673,6 +677,18 @@ function enterFs() {
 }
 function toggleFs() { if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); fsDone(); } else if (fsSupported) enterFs(); }
 if (fsAsked && fsHint) fsHint.style.display = "none";
+// 전체화면이 안 되는 환경(아이폰 사파리, 카카오톡 인앱 브라우저)에서는 안내만 잠깐 보여준다.
+(function () {
+  if (capture || !fsHint) return;
+  const ua = navigator.userAgent, standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  let msg = "";
+  if (/KAKAOTALK/i.test(ua)) msg = "오른쪽 아래 ⋯ 메뉴에서 Safari(크롬)로 열면 더 크게 볼 수 있어요";
+  else if (/iPhone|iPod/.test(ua) && !standalone) msg = "공유 ▸ 홈 화면에 추가 후 열면 전체화면으로 볼 수 있어요";
+  if (!msg) return;
+  fsHint.textContent = msg; fsHint.style.display = "";
+  const hide = () => { fsHint.style.display = "none"; };
+  setTimeout(hide, 7000); addEventListener("pointerdown", hide, { once: true });
+})();
 const touchUI = matchMedia("(pointer: coarse)").matches;  // 모바일: 일시정지 중에만 재생바 표시, 재생하면 숨김
 function showCtrl() { if (touchUI) return; if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
