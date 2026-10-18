@@ -112,6 +112,14 @@
   #ctrl button:hover { background: #334155; } #ctrl #cPlay { background: var(--green); color: #052e16; border-color: var(--green); font-weight: 800; min-width: 84px; }
   #ctrl input[type=range] { width: 420px; accent-color: var(--green); } #ctrl .tm { color: #cbd5e1; font-size: 14px; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
   #pausebadge { position: fixed; right: 20px; top: 70px; z-index: 90; background: rgba(0,0,0,.6); color: #fff; font: 700 16px "Malgun Gothic", sans-serif; padding: 9px 18px; border-radius: 12px; display: none; pointer-events: none; }
+  /* 모바일: 재생바가 하단 자막을 가리지 않게 배치 (세로=영상 아래, 가로=오른쪽 여백에 세로 막대) */
+  @media (orientation: portrait) { body.touch #ctrl { bottom: auto; top: calc(50% + 28.125vw + 14px); } }
+  @media (orientation: landscape) {
+    body.touch #ctrl { left: auto; right: 6px; top: 50%; bottom: auto; transform: translateY(-50%); flex-direction: column; gap: 6px; padding: 10px 6px; border-radius: 30px; }
+    body.touch #ctrl input[type=range], body.touch #ctrl .tm { display: none; }
+    body.touch #ctrl button { min-width: 46px; height: 40px; padding: 0 4px; font-size: 14px; }
+    body.touch #ctrl #cPlay { min-width: 46px; font-size: 13px; }
+  }
   body.capture #ctrl, body.capture #pausebadge { display: none !important; }
   #hud { position: fixed; left: 12px; bottom: 12px; font: 12px sans-serif; color: #7b8798; z-index: 99; }
   body.capture #hud { display: none; }
@@ -690,6 +698,7 @@ if (fsAsked && fsHint) fsHint.style.display = "none"; else if (fsHint) setTimeou
   setTimeout(hide, 5000); addEventListener("pointerdown", hide, { once: true });
 })();
 const touchUI = matchMedia("(pointer: coarse)").matches;  // 모바일: 일시정지 중에만 재생바 표시, 재생하면 숨김
+if (touchUI) document.body.classList.add("touch");
 function showCtrl() { if (touchUI) return; if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
 document.getElementById("stage").addEventListener("click", () => { if (!fsAsked) { enterFs(); return; } togglePlay(); showCtrl(); });
