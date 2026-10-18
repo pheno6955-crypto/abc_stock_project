@@ -114,13 +114,7 @@
   #pausebadge { position: fixed; right: 20px; top: 70px; z-index: 90; background: rgba(0,0,0,.6); color: #fff; font: 700 16px "Malgun Gothic", sans-serif; padding: 9px 18px; border-radius: 12px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   /* 모바일: 재생바가 하단 자막을 가리지 않게 배치 (세로=영상 아래, 가로=오른쪽 여백에 세로 막대) */
   @media (orientation: portrait) { body.touch #ctrl { bottom: auto; top: calc(50% + 28.125vw + 14px); } }
-  @media (orientation: landscape) {
-    body.touch #ctrl { left: auto; right: 6px; top: 50%; bottom: auto; transform: translateY(-50%); flex-direction: column; gap: 6px; padding: 10px 6px; border-radius: 30px; }
-    body.touch #ctrl input[type=range], body.touch #ctrl .tm { display: none; }
-    body.touch #ctrl button { min-width: 46px; height: 40px; padding: 0 4px; font-size: 14px; }
-    body.touch #ctrl #cPlay { min-width: 46px; font-size: 13px; }
-    body.touch #pausebadge { top: 8px; right: 6px; font-size: 14px; padding: 6px 12px; }  /* 오른쪽 세로 재생바 위쪽으로 비켜 겹침 방지 */
-  }
+  @media (orientation: landscape) { body.touch #ctrl { bottom: 8px; } }  /* 가로: 하단 재생바(진행 막대 포함), 일시정지 직후 잠깐만 표시 */
   body.capture #ctrl, body.capture #pausebadge { display: none !important; }
   #hud { position: fixed; left: 12px; bottom: 12px; font: 12px sans-serif; color: #7b8798; z-index: 99; }
   body.capture #hud { display: none; }
