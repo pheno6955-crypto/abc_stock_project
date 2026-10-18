@@ -6,6 +6,13 @@ import { getErrorMessage } from "../api/errors";
 
 const RANK_MEDAL: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
+// 상위 3위 우대 혜택. 월간 랭킹(이번 달)에서만 이름 옆에 작은 배지로 보여준다.
+const RANK_BENEFIT: Record<number, string> = {
+  1: "우대금리 0.2%",
+  2: "우대금리 0.1%",
+  3: "NH포인트 2배",
+};
+
 // 유명 축구선수 이름 목록. 로그인 전(guest-<uuid>) 사용자는 이름이 없어서 그대로 보여주면
 // 알아보기 힘든 무작위 문자열이 노출되므로, 친숙한 이름으로 바꿔서 보여준다.
 const PLAYER_NAMES = [
@@ -119,7 +126,12 @@ export default function Rankings() {
             {data.entries.map((e) => (
               <div key={e.rank} className={`ranking-row ${e.isMe ? "me" : ""}`}>
                 <span className="ranking-rank">{RANK_MEDAL[e.rank] ?? `${e.rank}위`}</span>
-                <span className="ranking-name">{e.isMe ? "나" : nameMap.get(e.userId)}</span>
+                <span className="ranking-name">
+                  {e.isMe ? "나" : nameMap.get(e.userId)}
+                  {period === "month" && RANK_BENEFIT[e.rank] && (
+                    <span className={`ranking-benefit ranking-benefit-${e.rank}`}>{RANK_BENEFIT[e.rank]}</span>
+                  )}
+                </span>
                 <span className="ranking-stats">
                   {e.hits}승 {e.attempts - e.hits}패 · 적중률 {Math.round(e.accuracy * 100)}%
                 </span>

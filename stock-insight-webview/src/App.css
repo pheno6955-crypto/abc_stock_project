@@ -526,6 +526,39 @@ body {
   font-size: 14px;
 }
 
+.ranking-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.ranking-benefit {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(0, 166, 80, 0.1);
+  color: #00873f;
+}
+
+.ranking-benefit-1 {
+  background: #fff4d1;
+  color: #8a6400;
+}
+
+.ranking-benefit-2 {
+  background: #eceef1;
+  color: #4a5563;
+}
+
+.ranking-benefit-3 {
+  background: #fbe9dc;
+  color: #8a4a1f;
+}
+
 .ranking-stats {
   flex-shrink: 0;
   font-size: 12px;
