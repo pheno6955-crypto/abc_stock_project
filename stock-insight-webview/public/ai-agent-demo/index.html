@@ -183,7 +183,7 @@
 </head>
 <body>
 <div id="rotate">휴대폰을 가로로 돌리면 더 크게 볼 수 있어요</div>
-<div id="hud">화면 클릭 또는 Space: 정지/재생 · ←/→ 또는 PageUp/PageDown 이동 · R 처음부터 · C 자막 켜기/끄기</div>
+<div id="hud">화면 클릭 또는 Space: 정지/재생 · ←/→ 또는 PageUp/PageDown 이동 · R 처음부터 · C 자막 · H 재생바</div>
 <div id="stage">
   <div id="topbar"><span class="logo"><b>AI</b> Agent</span><span class="tag">시연 · 기획서 → 개발 → 구현  |  적용 사례: <span class="case"><b>NH</b> <i>올리</i><u>내리</u></span></span><div id="pips"></div></div>
 
@@ -653,7 +653,8 @@ function seek(t) { last = Math.max(0, Math.min(TOTAL - 0.02, t)); offset = last;
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const ctrl = document.getElementById("ctrl"), cPlay = document.getElementById("cPlay"), cSeek = document.getElementById("cSeek"), cTime = document.getElementById("cTime"), badge = document.getElementById("pausebadge");
 cSeek.max = TOTAL; let hideTimer = null;
-function showCtrl() { ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
+let barOff = present || /[?&]controls=0/.test(location.search);  // 발표 모드는 재생바 기본 숨김, H 키로 켜기/끄기
+function showCtrl() { if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
 document.getElementById("stage").addEventListener("click", () => { togglePlay(); showCtrl(); });
 ctrl.addEventListener("click", e => e.stopPropagation());
@@ -677,6 +678,7 @@ function loop(ts) {
 render(offset);
 if (!capture) { if (present) goScene(0); requestAnimationFrame(loop); }
 addEventListener("keydown", e => {
+  if (e.code === "KeyH") { barOff = !barOff; if (barOff) ctrl.classList.add("hide"); else showCtrl(); }
   if (e.code === "Space") { if (document.activeElement && document.activeElement.tagName === "BUTTON") document.activeElement.blur(); togglePlay(); showCtrl(); e.preventDefault(); }
   if (e.code === "ArrowRight" || e.code === "PageDown") { e.preventDefault(); if (present) goScene(sceneIdx(last) + 1); else seek(last + 5); showCtrl(); }
   if (e.code === "ArrowLeft" || e.code === "PageUp") { e.preventDefault(); if (present) goScene(sceneIdx(last) - 1); else seek(last - 5); showCtrl(); }
