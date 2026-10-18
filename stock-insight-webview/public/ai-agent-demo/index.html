@@ -113,7 +113,12 @@
   #ctrl input[type=range] { width: 420px; accent-color: var(--green); } #ctrl .tm { color: #cbd5e1; font-size: 14px; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
   #pausebadge { position: fixed; right: 20px; top: 70px; z-index: 90; background: rgba(0,0,0,.6); color: #fff; font: 700 16px "Malgun Gothic", sans-serif; padding: 9px 18px; border-radius: 12px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   /* 모바일: 재생바가 하단 자막을 가리지 않게 배치 (세로=영상 아래, 가로=오른쪽 여백에 세로 막대) */
-  @media (orientation: portrait) { body.touch #ctrl { bottom: auto; top: calc(50% + 28.125vw + 14px); } }
+  @media (orientation: portrait) {
+    /* 세로: 영상 아래에 두 줄(위: 버튼, 아래: 진행 막대+시간)로 배치해 화면 폭 안에 들어오게 함 */
+    body.touch #ctrl { bottom: auto; top: calc(50% + 28.125vw + 14px); flex-wrap: wrap; justify-content: center; gap: 8px; width: calc(100vw - 16px); max-width: 440px; box-sizing: border-box; border-radius: 26px; padding: 10px 12px; }
+    body.touch #ctrl input[type=range] { flex: 1 1 180px; min-width: 180px; width: auto; }
+    body.touch #ctrl .tm { min-width: 88px; }
+  }
   @media (orientation: landscape) { body.touch #ctrl { bottom: 8px; } }  /* 가로: 하단 재생바(진행 막대 포함), 일시정지 직후 잠깐만 표시 */
   body.capture #ctrl, body.capture #pausebadge { display: none !important; }
   #hud { position: fixed; left: 12px; bottom: 12px; font: 12px sans-serif; color: #7b8798; z-index: 99; }
