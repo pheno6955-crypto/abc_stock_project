@@ -111,6 +111,8 @@
   body.capture #ctrl, body.capture #pausebadge { display: none !important; }
   #hud { position: fixed; left: 12px; bottom: 12px; font: 12px sans-serif; color: #7b8798; z-index: 99; }
   body.capture #hud { display: none; }
+  #fshint { position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%); padding: 8px 16px; border-radius: 999px; background: rgba(15,23,42,.78); color: #fff; font: 600 14px sans-serif; z-index: 99; white-space: nowrap; pointer-events: none; }
+  body.capture #fshint { display: none; }
   #rotate { display: none; position: fixed; left: 0; right: 0; top: 18px; text-align: center; font: 600 14px sans-serif; color: #475569; z-index: 99; }
   @media (orientation: portrait) and (max-width: 700px) { #rotate { display: block; } }
   body.capture #rotate { display: none; }
@@ -182,8 +184,9 @@
 </style>
 </head>
 <body>
+<div id="fshint">화면을 클릭(터치)하면 전체화면으로 전환돼요</div>
 <div id="rotate">휴대폰을 가로로 돌리면 더 크게 볼 수 있어요</div>
-<div id="hud">화면 클릭 또는 Space: 정지/재생 · ←/→ 또는 PageUp/PageDown 이동 · R 처음부터 · C 자막 · H 재생바</div>
+<div id="hud">화면 클릭 또는 Space: 정지/재생 · ←/→ 또는 PageUp/PageDown 이동 · R 처음부터 · C 자막 · H 재생바 · F 전체화면</div>
 <div id="stage">
   <div id="topbar"><span class="logo"><b>AI</b> Agent</span><span class="tag">시연 · 기획서 → 개발 → 구현  |  적용 사례: <span class="case"><b>NH</b> <i>올리</i><u>내리</u></span></span><div id="pips"></div></div>
 
@@ -654,10 +657,26 @@ const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2,
 const ctrl = document.getElementById("ctrl"), cPlay = document.getElementById("cPlay"), cSeek = document.getElementById("cSeek"), cTime = document.getElementById("cTime"), badge = document.getElementById("pausebadge");
 cSeek.max = TOTAL; let hideTimer = null;
 let barOff = !/[?&]controls=1/.test(location.search);  // 재생바는 기본 숨김. H 키 또는 ?controls=1 로 켜기
+// ----- 전체화면: 첫 클릭/터치/키 입력 때 진입(그 입력은 전체화면 진입에만 쓴다), F 키로 켜기/끄기 -----
+const fsRoot = document.documentElement;
+const fsSupported = !!(fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen);
+const fsActive = () => !!(document.fullscreenElement || document.webkitFullscreenElement) || innerHeight >= screen.height - 2;
+let fsAsked = capture || !fsSupported || fsActive();
+const fsHint = document.getElementById("fshint");
+function fsDone() { fsAsked = true; if (fsHint) fsHint.style.display = "none"; }
+function enterFs() {
+  fsDone();
+  try {
+    const p = (fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen).call(fsRoot);
+    if (p && p.then) p.then(() => { try { if (matchMedia("(pointer: coarse)").matches) screen.orientation.lock("landscape").catch(() => {}); } catch (e) {} }).catch(() => {});
+  } catch (e) {}
+}
+function toggleFs() { if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); fsDone(); } else if (fsSupported) enterFs(); }
+if (fsAsked && fsHint) fsHint.style.display = "none";
 const touchUI = matchMedia("(pointer: coarse)").matches;  // 모바일: 일시정지 중에만 재생바 표시, 재생하면 숨김
 function showCtrl() { if (touchUI) return; if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
-document.getElementById("stage").addEventListener("click", () => { togglePlay(); showCtrl(); });
+document.getElementById("stage").addEventListener("click", () => { if (!fsAsked) { enterFs(); return; } togglePlay(); showCtrl(); });
 ctrl.addEventListener("click", e => e.stopPropagation());
 cPlay.onclick = () => { togglePlay(); showCtrl(); };
 document.getElementById("cBack").onclick = () => { seek(last - 5); showCtrl(); };
@@ -679,6 +698,8 @@ function loop(ts) {
 render(offset);
 if (!capture) { if (present) goScene(0); requestAnimationFrame(loop); }
 addEventListener("keydown", e => {
+  if (e.code === "KeyF") { toggleFs(); return; }
+  if (!fsAsked && ["Space", "ArrowRight", "ArrowLeft", "PageDown", "PageUp"].includes(e.code)) { e.preventDefault(); enterFs(); return; }
   if (e.code === "KeyH") { barOff = !barOff; if (barOff) ctrl.classList.add("hide"); else showCtrl(); }
   if (e.code === "Space") { if (document.activeElement && document.activeElement.tagName === "BUTTON") document.activeElement.blur(); togglePlay(); showCtrl(); e.preventDefault(); }
   if (e.code === "ArrowRight" || e.code === "PageDown") { e.preventDefault(); if (present) goScene(sceneIdx(last) + 1); else seek(last + 5); showCtrl(); }
