@@ -653,7 +653,7 @@ function seek(t) { last = Math.max(0, Math.min(TOTAL - 0.02, t)); offset = last;
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const ctrl = document.getElementById("ctrl"), cPlay = document.getElementById("cPlay"), cSeek = document.getElementById("cSeek"), cTime = document.getElementById("cTime"), badge = document.getElementById("pausebadge");
 cSeek.max = TOTAL; let hideTimer = null;
-let barOff = present || /[?&]controls=0/.test(location.search);  // 발표 모드는 재생바 기본 숨김, H 키로 켜기/끄기
+let barOff = !/[?&]controls=1/.test(location.search);  // 재생바는 기본 숨김. H 키 또는 ?controls=1 로 켜기
 function showCtrl() { if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
 document.getElementById("stage").addEventListener("click", () => { togglePlay(); showCtrl(); });
