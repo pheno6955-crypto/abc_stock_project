@@ -111,7 +111,7 @@
   #ctrl button { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 999px; min-width: 40px; height: 36px; padding: 0 12px; font-size: 16px; cursor: pointer; }
   #ctrl button:hover { background: #334155; } #ctrl #cPlay { background: var(--green); color: #052e16; border-color: var(--green); font-weight: 800; min-width: 84px; }
   #ctrl input[type=range] { width: 420px; accent-color: var(--green); } #ctrl .tm { color: #cbd5e1; font-size: 14px; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
-  #pausebadge { position: fixed; right: 20px; top: 70px; z-index: 90; background: rgba(0,0,0,.6); color: #fff; font: 700 16px "Malgun Gothic", sans-serif; padding: 9px 18px; border-radius: 12px; display: none; pointer-events: none; }
+  #pausebadge { position: fixed; right: 20px; top: 70px; z-index: 90; background: rgba(0,0,0,.6); color: #fff; font: 700 16px "Malgun Gothic", sans-serif; padding: 9px 18px; border-radius: 12px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   /* 모바일: 재생바가 하단 자막을 가리지 않게 배치 (세로=영상 아래, 가로=오른쪽 여백에 세로 막대) */
   @media (orientation: portrait) { body.touch #ctrl { bottom: auto; top: calc(50% + 28.125vw + 14px); } }
   @media (orientation: landscape) {
@@ -377,7 +377,7 @@
   <div id="caption"></div>
   <div id="progress"></div>
 </div>
-<div id="pausebadge">⏸ 일시정지 (클릭 또는 Space로 재생)</div>
+<div id="pausebadge">⏸ 일시정지</div>
 <div id="ctrl" class="hide">
   <button id="cPrev" title="이전 장면">⏮</button><button id="cBack" title="5초 뒤로">−5s</button>
   <button id="cPlay">⏸ 정지</button>
@@ -709,6 +709,8 @@ document.getElementById("cFwd").onclick = () => { seek(last + 5); showCtrl(); };
 document.getElementById("cPrev").onclick = () => { goScene(sceneIdx(last) - 1); if (!present) pauseAt = null; showCtrl(); };
 document.getElementById("cNext").onclick = () => { goScene(sceneIdx(last) + 1); if (!present) pauseAt = null; showCtrl(); };
 cSeek.oninput = () => { seek(parseFloat(cSeek.value)); showCtrl(); };
+let prevPlaying = playing, pausedAt = 0;
+ctrl.addEventListener("pointerdown", () => { pausedAt = performance.now(); });
 function loop(ts) {
   if (playing) {
     if (t0 === null) t0 = ts - offset * 1000; last = (ts - t0) / 1000;
@@ -716,7 +718,13 @@ function loop(ts) {
     if (last >= TOTAL) { last = TOTAL - 0.01; playing = false; }
   }
   render(last);
-  cPlay.textContent = playing ? "⏸ 정지" : "▶ 재생"; badge.style.display = playing ? "none" : "block"; if (touchUI && !capture) ctrl.classList.toggle("hide", playing);
+  cPlay.textContent = playing ? "⏸ 정지" : "▶ 재생";
+  // 일시정지 안내(배지)와 모바일 재생바는 멈춘 직후 2초만 보여준다 (재생바를 만지면 2초 연장)
+  const nowMs = performance.now();
+  if (playing !== prevPlaying) { prevPlaying = playing; pausedAt = nowMs; }
+  const recent = !playing && nowMs - pausedAt < 2000;
+  badge.style.display = "block"; badge.style.opacity = recent ? "1" : "0";
+  if (touchUI && !capture) ctrl.classList.toggle("hide", !recent);
   if (document.activeElement !== cSeek) cSeek.value = last; cTime.textContent = `${fmt(last)} / ${fmt(TOTAL)}`;
   requestAnimationFrame(loop);
 }
