@@ -62,6 +62,12 @@ export default function Home({ onStart }: Props) {
         AI 참고용 콘텐츠로, 투자 자문·권유가 아니며 책임은 본인에게 있어요.
       </p>
       <p className="disclaimer disclaimer-short">AI 참고용 콘텐츠이며 투자 자문·권유가 아니에요.</p>
+
+      <p className="demo-link-wrap">
+        <a className="demo-link" href="/ai-agent-demo/" target="_blank" rel="noopener noreferrer">
+          AI Agent 시연 영상 보기
+        </a>
+      </p>
     </div>
   );
 }
