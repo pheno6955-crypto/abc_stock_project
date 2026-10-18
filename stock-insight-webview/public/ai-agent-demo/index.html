@@ -654,7 +654,8 @@ const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2,
 const ctrl = document.getElementById("ctrl"), cPlay = document.getElementById("cPlay"), cSeek = document.getElementById("cSeek"), cTime = document.getElementById("cTime"), badge = document.getElementById("pausebadge");
 cSeek.max = TOTAL; let hideTimer = null;
 let barOff = !/[?&]controls=1/.test(location.search);  // 재생바는 기본 숨김. H 키 또는 ?controls=1 로 켜기
-function showCtrl() { if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
+const touchUI = matchMedia("(pointer: coarse)").matches;  // 모바일: 일시정지 중에만 재생바 표시, 재생하면 숨김
+function showCtrl() { if (touchUI) return; if (barOff) { ctrl.classList.add("hide"); return; } ctrl.classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(() => ctrl.classList.add("hide"), 2500); }
 addEventListener("mousemove", showCtrl); addEventListener("touchstart", showCtrl);
 document.getElementById("stage").addEventListener("click", () => { togglePlay(); showCtrl(); });
 ctrl.addEventListener("click", e => e.stopPropagation());
@@ -671,7 +672,7 @@ function loop(ts) {
     if (last >= TOTAL) { last = TOTAL - 0.01; playing = false; }
   }
   render(last);
-  cPlay.textContent = playing ? "⏸ 정지" : "▶ 재생"; badge.style.display = playing ? "none" : "block";
+  cPlay.textContent = playing ? "⏸ 정지" : "▶ 재생"; badge.style.display = playing ? "none" : "block"; if (touchUI && !capture) ctrl.classList.toggle("hide", playing);
   if (document.activeElement !== cSeek) cSeek.value = last; cTime.textContent = `${fmt(last)} / ${fmt(TOTAL)}`;
   requestAnimationFrame(loop);
 }
