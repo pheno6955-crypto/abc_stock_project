@@ -4,7 +4,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta charset="utf-8">
 <title>AI Agent 시연 영상 - 적용 사례 NH 올리내리</title>
-<meta name="viewport" content="width=1920">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
     --bg: #0b1220; --panel: #131c2e; --line: #263450; --text: #f1f5f9; --sub: #9aa8bd;
@@ -111,6 +111,10 @@
   body.capture #ctrl, body.capture #pausebadge { display: none !important; }
   #hud { position: fixed; left: 12px; bottom: 12px; font: 12px sans-serif; color: #7b8798; z-index: 99; }
   body.capture #hud { display: none; }
+  #rotate { display: none; position: fixed; left: 0; right: 0; top: 18px; text-align: center; font: 600 14px sans-serif; color: #475569; z-index: 99; }
+  @media (orientation: portrait) and (max-width: 700px) { #rotate { display: block; } }
+  body.capture #rotate { display: none; }
+  @media (max-width: 900px) { #hud { display: none; } }
   /* ===== 흰 배경 테마 (기본). ?theme=dark 로 어두운 버전 ===== */
   body.light { background: #fff; --bg: #ffffff; --panel: #f6f8fb; --line: #dbe3ee; --text: #0f172a; --sub: #5b6b82; --green: #16a34a; --violet: #7c3aed; --amber: #d97706; --up: #dc2626; --down: #2563eb; }
   body.light #topbar { background: #fff; }
@@ -178,6 +182,7 @@
 </style>
 </head>
 <body>
+<div id="rotate">휴대폰을 가로로 돌리면 더 크게 볼 수 있어요</div>
 <div id="hud">화면 클릭 또는 Space: 정지/재생 · ←/→ 또는 PageUp/PageDown 이동 · R 처음부터 · C 자막 켜기/끄기</div>
 <div id="stage">
   <div id="topbar"><span class="logo"><b>AI</b> Agent</span><span class="tag">시연 · 기획서 → 개발 → 구현  |  적용 사례: <span class="case"><b>NH</b> <i>올리</i><u>내리</u></span></span><div id="pips"></div></div>
@@ -641,8 +646,8 @@ const present = params.get("mode") === "present"; // ?mode=present : 발표자 �
 let t0 = null, offset = parseFloat(params.get("t") || "0"), playing = !capture && params.get("autoplay") !== "0", last = offset, pauseAt = null;
 const sceneIdx = t => { let i = 0; SCENES.forEach((s, k) => { if (t >= s.start) i = k; }); return i; };
 function goScene(i) { i = Math.max(0, Math.min(SCENES.length - 1, i)); last = SCENES[i].start; offset = last; t0 = null; playing = true; pauseAt = present ? SCENES[i].end : null; }
-function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); document.getElementById("stage").style.transform = capture ? "none" : `scale(${s})`; }
-addEventListener("resize", fit); fit();
+function fit() { const de = document.documentElement; const s = Math.min(de.clientWidth / 1920, de.clientHeight / 1080); document.getElementById("stage").style.transform = capture ? "none" : `scale(${s})`; }
+addEventListener("resize", fit); addEventListener("orientationchange", fit); fit();
 function togglePlay() { playing = !playing; if (playing) { t0 = null; offset = last; if (present) pauseAt = SCENES[sceneIdx(last)].end; } }
 function seek(t) { last = Math.max(0, Math.min(TOTAL - 0.02, t)); offset = last; t0 = null; if (present && playing) pauseAt = SCENES[sceneIdx(last)].end; }
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
